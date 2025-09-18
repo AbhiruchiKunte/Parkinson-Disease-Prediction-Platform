@@ -1,12 +1,26 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { Activity, FileSpreadsheet, BarChart3, Shield } from 'lucide-react';
+import { Activity, FileSpreadsheet, BarChart3 } from 'lucide-react';
 
 const HeroSection = () => {
+  const scrollToSection = (id) => {
+    const element = document.getElementById(id);
+    if (element) {
+      const headerOffset = 80; // Approximate height of the fixed header
+      const elementPosition = element.getBoundingClientRect().top;
+      const offsetPosition = elementPosition + window.pageYOffset - headerOffset;
+
+      window.scrollTo({
+        top: offsetPosition,
+        behavior: 'smooth'
+      });
+    }
+  };
+
   return (
-    <section className="py-16 bg-gradient-hero">
-      <div className="container mx-auto px-4">
+    <section className="pt-24 pb-16 bg-gradient-hero">
+      <div className="container mx-auto px-6">
         <div className="text-center text-white mb-12">
           <h1 className="text-4xl md:text-6xl font-bold mb-6">
             Advanced Parkinson's Detection
@@ -16,47 +30,55 @@ const HeroSection = () => {
             using comprehensive biomarker assessment.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-  <Button size="lg" variant="secondary" className="shadow-elevated">
-    Start Assessment
-  </Button>
-  <Button size="lg" variant="secondary" className="shadow-elevated">
-    Upload Dataset
-  </Button>
-</div>
+            <Button onClick={() => scrollToSection('assessment')} size="lg" variant="secondary" className="shadow-elevated">
+              Start Assessment
+            </Button>
+            <Button onClick={() => scrollToSection('upload')} size="lg" variant="secondary" className="shadow-elevated">
+              Upload Dataset
+            </Button>
+          </div>
         </div>
 
         <div className="grid md:grid-cols-3 gap-6 max-w-4xl mx-auto">
-  <Card className="bg-white/20 border-white/30 backdrop-blur-sm hover:bg-white/30 transition">
-    <CardContent className="p-6 text-center text-white">
-      <Activity className="h-12 w-12 mx-auto mb-4 text-medical-green" />
-      <h3 className="text-lg font-semibold mb-2">Clinical Assessment</h3>
-      <p className="text-sm opacity-90">
-        Comprehensive questionnaire covering tremor, rigidity, and motor symptoms
-      </p>
-    </CardContent>
-  </Card>
+          {/* Card 1 */}
+          <div className="group transition-all duration-300 hover:scale-[1.03] hover:shadow-elevated rounded-lg">
+            <Card className="bg-white/20 border-white/30 backdrop-blur-sm transition h-full">
+              <CardContent className="p-6 text-center text-white flex flex-col h-full">
+                <Activity className="h-12 w-12 mx-auto mb-4 text-medical-green flex-shrink-0" />
+                <h3 className="text-lg font-semibold mb-2">Clinical Assessment</h3>
+                <p className="text-sm opacity-90">
+                  Comprehensive questionnaire covering tremor, rigidity, and motor symptoms
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+          
+          {/* Card 2 */}
+          <div className="group transition-all duration-300 hover:scale-[1.03] hover:shadow-elevated rounded-lg">
+            <Card className="bg-white/20 border-white/30 backdrop-blur-sm transition h-full">
+              <CardContent className="p-6 text-center text-white flex flex-col h-full">
+                <FileSpreadsheet className="h-12 w-12 mx-auto mb-4 text-medical-orange flex-shrink-0" />
+                <h3 className="text-lg font-semibold mb-2">Batch Processing</h3>
+                <p className="text-sm opacity-90">
+                  Upload patient datasets for large-scale analysis and screening
+                </p>
+              </CardContent>
+            </Card>
+          </div>
 
-  <Card className="bg-white/20 border-white/30 backdrop-blur-sm hover:bg-white/30 transition">
-    <CardContent className="p-6 text-center text-white">
-      <FileSpreadsheet className="h-12 w-12 mx-auto mb-4 text-medical-orange" />
-      <h3 className="text-lg font-semibold mb-2">Batch Processing</h3>
-      <p className="text-sm opacity-90">
-        Upload patient datasets for large-scale analysis and screening
-      </p>
-    </CardContent>
-  </Card>
-
-  <Card className="bg-white/20 border-white/30 backdrop-blur-sm hover:bg-white/30 transition">
-    <CardContent className="p-6 text-center text-white">
-      <BarChart3 className="h-12 w-12 mx-auto mb-4 text-medical-blue" />
-      <h3 className="text-lg font-semibold mb-2">Visual Analytics</h3>
-      <p className="text-sm opacity-90">
-        Interactive PCA plots and feature analysis for clinical insights
-      </p>
-    </CardContent>
-  </Card>
-</div>
-
+          {/* Card 3 */}
+          <div className="group transition-all duration-300 hover:scale-[1.03] hover:shadow-elevated rounded-lg">
+            <Card className="bg-white/20 border-white/30 backdrop-blur-sm transition h-full">
+              <CardContent className="p-6 text-center text-white flex flex-col h-full">
+                <BarChart3 className="h-12 w-12 mx-auto mb-4 text-medical-blue flex-shrink-0" />
+                <h3 className="text-lg font-semibold mb-2">Visual Analytics</h3>
+                <p className="text-sm opacity-90">
+                  Interactive PCA plots and feature analysis for clinical insights
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
       </div>
     </section>
   );

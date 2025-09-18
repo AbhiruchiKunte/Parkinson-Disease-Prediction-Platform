@@ -111,7 +111,7 @@ const QuestionnaireForm = () => {
                   <div className="space-y-4">
                     <div>
                       <Label>Tremor Score (0-4)</Label>
-                      <div className="px-2 py-4">
+                      <div className="px-2 py-4 cursor-pointer">
                         <Slider
                           value={[formData.tremorScore]}
                           onValueChange={(value) => updateFormData('tremorScore', value[0])}
@@ -129,7 +129,7 @@ const QuestionnaireForm = () => {
 
                     <div>
                       <Label>Bradykinesia Score (0-4)</Label>
-                      <div className="px-2 py-4">
+                      <div className="px-2 py-4 cursor-pointer">
                         <Slider
                           value={[formData.bradykinesia]}
                           onValueChange={(value) => updateFormData('bradykinesia', value[0])}
@@ -147,7 +147,7 @@ const QuestionnaireForm = () => {
 
                     <div>
                       <Label>Rigidity Score (0-4)</Label>
-                      <div className="px-2 py-4">
+                      <div className="px-2 py-4 cursor-pointer">
                         <Slider
                           value={[formData.rigidity]}
                           onValueChange={(value) => updateFormData('rigidity', value[0])}
@@ -175,7 +175,7 @@ const QuestionnaireForm = () => {
                   <div className="space-y-4">
                     <div>
                       <Label>Jitter (%)</Label>
-                      <div className="px-2 py-4">
+                      <div className="px-2 py-4 cursor-pointer">
                         <Slider
                           value={[formData.jitter]}
                           onValueChange={(value) => updateFormData('jitter', value[0])}
@@ -193,7 +193,7 @@ const QuestionnaireForm = () => {
 
                     <div>
                       <Label>Shimmer (%)</Label>
-                      <div className="px-2 py-4">
+                      <div className="px-2 py-4 cursor-pointer">
                         <Slider
                           value={[formData.shimmer]}
                           onValueChange={(value) => updateFormData('shimmer', value[0])}
@@ -220,7 +220,7 @@ const QuestionnaireForm = () => {
                   
                   <div>
                     <Label>Handwriting Score (0-4)</Label>
-                    <div className="px-2 py-4">
+                    <div className="px-2 py-4 cursor-pointer">
                       <Slider
                         value={[formData.handwritingScore]}
                         onValueChange={(value) => updateFormData('handwritingScore', value[0])}

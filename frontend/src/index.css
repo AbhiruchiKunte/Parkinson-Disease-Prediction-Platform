@@ -17,7 +17,7 @@ All colors MUST be HSL.
     --popover: 0 0% 100%;
     --popover-foreground: 215 25% 27%;
 
-    --primary: 210 100% 50%;
+    --primary: 210 80% 50%;
     --primary-foreground: 0 0% 100%;
 
     --secondary: 210 17% 95%;
@@ -40,15 +40,15 @@ All colors MUST be HSL.
     --ring: 210 100% 50%;
 
     /* Medical UI specific tokens */
-    --medical-blue: 210 100% 50%;
-    --medical-blue-light: 210 100% 95%;
+    --medical-blue: 210 80% 50%;
+    --medical-blue-light: 210 80% 95%;
     --medical-green: 142 76% 36%;
     --medical-green-light: 142 76% 95%;
     --medical-orange: 38 92% 50%;
     --medical-orange-light: 38 92% 95%;
     
     /* Gradients */
-    --gradient-hero: linear-gradient(135deg, hsl(210, 65%, 40%), hsl(210 100% 65%));
+    --gradient-hero: linear-gradient(135deg, hsl(210, 65%, 40%), hsl(210 80% 55%));
     --gradient-card: linear-gradient(145deg, hsl(0 0% 100%), hsl(210 17% 98%));
     --gradient-success: linear-gradient(135deg, hsl(142 76% 36%), hsl(142 76% 50%));
     
@@ -86,7 +86,7 @@ All colors MUST be HSL.
     --popover: 215 25% 20%;
     --popover-foreground: 210 17% 95%;
 
-    --primary: 210 100% 60%;
+    --primary: 210 80% 60%;
     --primary-foreground: 0 0% 100%;
 
     --secondary: 215 25% 25%;
@@ -106,23 +106,23 @@ All colors MUST be HSL.
 
     --border: 215 25% 30%;
     --input: 215 25% 30%;
-    --ring: 210 100% 60%;
+    --ring: 210 80% 60%;
 
     /* Medical UI specific tokens - dark mode */
-    --medical-blue: 210 100% 60%;
-    --medical-blue-light: 210 100% 25%;
+    --medical-blue: 210 80% 60%;
+    --medical-blue-light: 210 80% 25%;
     --medical-green: 142 76% 45%;
     --medical-green-light: 142 76% 25%;
     --medical-orange: 38 92% 55%;
     --medical-orange-light: 38 92% 25%;
     
     /* Gradients - dark mode */
-    --gradient-hero: linear-gradient(135deg, hsl(210 100% 60%), hsl(210 100% 75%));
+    --gradient-hero: linear-gradient(135deg, hsl(210 80% 50%), hsl(210 80% 65%));
     --gradient-card: linear-gradient(145deg, hsl(215 25% 20%), hsl(215 28% 17%));
     --gradient-success: linear-gradient(135deg, hsl(142 76% 45%), hsl(142 76% 60%));
     
     /* Shadows - dark mode */
-    --shadow-medical: 0 4px 20px -2px hsl(210 100% 60% / 0.2);
+    --shadow-medical: 0 4px 20px -2px hsl(210 80% 60% / 0.2);
     --shadow-card: 0 2px 10px -2px hsl(0 0% 0% / 0.3);
     --shadow-elevated: 0 8px 30px -4px hsl(0 0% 0% / 0.4);
     --sidebar-background: 240 5.9% 10%;

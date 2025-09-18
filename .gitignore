@@ -13,6 +13,7 @@ node_modules
 venv
 __pycache__
 
+
 dist
 dist-ssr
 *.local

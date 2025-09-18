@@ -92,6 +92,7 @@ const VisualizationPanel = () => {
 
   const pcaOptions = {
     responsive: true,
+    maintainAspectRatio: false,
     plugins: {
       legend: {
         position: 'top' as const,
@@ -125,6 +126,7 @@ const VisualizationPanel = () => {
 
   const barOptions = {
     responsive: true,
+    maintainAspectRatio: false,
     plugins: {
       legend: {
         display: false,
@@ -198,7 +200,7 @@ const VisualizationPanel = () => {
                 </div>
                 
                 <div className="bg-card rounded-lg p-6 shadow-card">
-                  <div className="h-96">
+                  <div className="relative" style={{ height: '50vh', minHeight: '300px', maxHeight: '600px' }}>
                     <Chart
                       type="scatter"
                       data={pcaData}
@@ -243,7 +245,7 @@ const VisualizationPanel = () => {
                 </div>
                 
                 <div className="bg-card rounded-lg p-6 shadow-card">
-                  <div className="h-96">
+                  <div className="relative" style={{ height: '50vh', minHeight: '300px', maxHeight: '600px' }}>
                     <Chart
                       type="bar"
                       data={featureImportanceData}
