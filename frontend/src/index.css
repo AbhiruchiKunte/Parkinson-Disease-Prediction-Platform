@@ -48,7 +48,7 @@ All colors MUST be HSL.
     --medical-orange-light: 38 92% 95%;
     
     /* Gradients */
-    --gradient-hero: linear-gradient(135deg, hsl(210 100% 50%), hsl(210 100% 65%));
+    --gradient-hero: linear-gradient(135deg, hsl(210, 65%, 40%), hsl(210 100% 65%));
     --gradient-card: linear-gradient(145deg, hsl(0 0% 100%), hsl(210 17% 98%));
     --gradient-success: linear-gradient(135deg, hsl(142 76% 36%), hsl(142 76% 50%));
     

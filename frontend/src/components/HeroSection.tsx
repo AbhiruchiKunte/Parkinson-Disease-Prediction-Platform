@@ -16,46 +16,47 @@ const HeroSection = () => {
             using comprehensive biomarker assessment.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Button size="lg" variant="secondary" className="shadow-elevated">
-              Start Assessment
-            </Button>
-            <Button size="lg" variant="outline" className="text-white border-white hover:bg-white hover:text-primary">
-              Upload Dataset
-            </Button>
-          </div>
+  <Button size="lg" variant="secondary" className="shadow-elevated">
+    Start Assessment
+  </Button>
+  <Button size="lg" variant="secondary" className="shadow-elevated">
+    Upload Dataset
+  </Button>
+</div>
         </div>
 
         <div className="grid md:grid-cols-3 gap-6 max-w-4xl mx-auto">
-          <Card className="bg-white/10 border-white/20 backdrop-blur-sm">
-            <CardContent className="p-6 text-center text-white">
-              <Activity className="h-12 w-12 mx-auto mb-4 text-medical-green" />
-              <h3 className="text-lg font-semibold mb-2">Clinical Assessment</h3>
-              <p className="text-sm opacity-90">
-                Comprehensive questionnaire covering tremor, rigidity, and motor symptoms
-              </p>
-            </CardContent>
-          </Card>
+  <Card className="bg-white/20 border-white/30 backdrop-blur-sm hover:bg-white/30 transition">
+    <CardContent className="p-6 text-center text-white">
+      <Activity className="h-12 w-12 mx-auto mb-4 text-medical-green" />
+      <h3 className="text-lg font-semibold mb-2">Clinical Assessment</h3>
+      <p className="text-sm opacity-90">
+        Comprehensive questionnaire covering tremor, rigidity, and motor symptoms
+      </p>
+    </CardContent>
+  </Card>
 
-          <Card className="bg-white/10 border-white/20 backdrop-blur-sm">
-            <CardContent className="p-6 text-center text-white">
-              <FileSpreadsheet className="h-12 w-12 mx-auto mb-4 text-medical-orange" />
-              <h3 className="text-lg font-semibold mb-2">Batch Processing</h3>
-              <p className="text-sm opacity-90">
-                Upload patient datasets for large-scale analysis and screening
-              </p>
-            </CardContent>
-          </Card>
+  <Card className="bg-white/20 border-white/30 backdrop-blur-sm hover:bg-white/30 transition">
+    <CardContent className="p-6 text-center text-white">
+      <FileSpreadsheet className="h-12 w-12 mx-auto mb-4 text-medical-orange" />
+      <h3 className="text-lg font-semibold mb-2">Batch Processing</h3>
+      <p className="text-sm opacity-90">
+        Upload patient datasets for large-scale analysis and screening
+      </p>
+    </CardContent>
+  </Card>
 
-          <Card className="bg-white/10 border-white/20 backdrop-blur-sm">
-            <CardContent className="p-6 text-center text-white">
-              <BarChart3 className="h-12 w-12 mx-auto mb-4 text-medical-blue" />
-              <h3 className="text-lg font-semibold mb-2">Visual Analytics</h3>
-              <p className="text-sm opacity-90">
-                Interactive PCA plots and feature analysis for clinical insights
-              </p>
-            </CardContent>
-          </Card>
-        </div>
+  <Card className="bg-white/20 border-white/30 backdrop-blur-sm hover:bg-white/30 transition">
+    <CardContent className="p-6 text-center text-white">
+      <BarChart3 className="h-12 w-12 mx-auto mb-4 text-medical-blue" />
+      <h3 className="text-lg font-semibold mb-2">Visual Analytics</h3>
+      <p className="text-sm opacity-90">
+        Interactive PCA plots and feature analysis for clinical insights
+      </p>
+    </CardContent>
+  </Card>
+</div>
+
       </div>
     </section>
   );
