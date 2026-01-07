@@ -1,4 +1,4 @@
-import React from 'react';
+import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Activity, FileSpreadsheet, BarChart3 } from 'lucide-react';
@@ -19,23 +19,28 @@ const HeroSection = () => {
   };
 
   return (
-    <section className="pt-24 pb-16 bg-gradient-hero">
-      <div className="container mx-auto px-6">
-        <div className="text-center text-white mb-12">
-          <h1 className="text-4xl md:text-6xl font-bold mb-6">
+    <section className="pt-24 pb-16 bg-gradient-hero relative overflow-hidden">
+      <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?auto=format&fit=crop&q=80')] opacity-10 bg-cover bg-center mix-blend-overlay"></div>
+      <div className="container mx-auto px-6 relative z-10">
+        <div className="text-center text-white mb-12 animate-in fade-in slide-in-from-bottom-5 duration-700">
+          <h1 className="text-4xl md:text-7xl font-bold mb-6 tracking-tight">
             Advanced Parkinson's Detection
           </h1>
-          <p className="text-xl md:text-2xl mb-8 opacity-90 max-w-3xl mx-auto">
+          <p className="text-xl md:text-2xl mb-8 opacity-90 max-w-3xl mx-auto font-light">
             AI-powered analysis for early detection and stage classification of Parkinson's disease
             using comprehensive biomarker assessment.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Button onClick={() => scrollToSection('assessment')} size="lg" variant="secondary" className="shadow-elevated">
-              Start Assessment
-            </Button>
-            <Button onClick={() => scrollToSection('upload')} size="lg" variant="secondary" className="shadow-elevated">
-              Upload Dataset
-            </Button>
+            <Link to="/prediction">
+              <Button size="lg" variant="secondary" className="shadow-elevated text-lg h-14 px-8 font-semibold">
+                Start Assessment
+              </Button>
+            </Link>
+            <Link to="/about">
+              <Button size="lg" variant="outline" className="bg-transparent text-white border-white hover:bg-white/10 shadow-elevated text-lg h-14 px-8">
+                Learn Methodology
+              </Button>
+            </Link>
           </div>
         </div>
 

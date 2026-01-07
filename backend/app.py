@@ -2,9 +2,11 @@ from flask import Flask, request, jsonify
 from flask_cors import CORS
 import pandas as pd
 import numpy as np
-from utils import ModelHandler, validate_features, process_csv_batch
+from utils import validate_features, process_csv_batch, extract_audio_features
+from model_loader import ModelHandler
 import logging
 import os
+import uuid
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -92,6 +94,51 @@ def predict_csv():
     except Exception as e:
         logger.error(f"Batch prediction error: {str(e)}")
         return jsonify({"error": "Error processing CSV file"}), 500
+
+@app.route('/predict_audio', methods=['POST'])
+def predict_audio():
+    """Endpoint for audio-based prediction"""
+    temp_path = None
+    try:
+        if 'file' not in request.files:
+            return jsonify({"error": "No audio file provided"}), 400
+            
+        file = request.files['file']
+        if file.filename == '':
+            return jsonify({"error": "No selected file"}), 400
+            
+        # Save temp file
+        temp_filename = f"temp_{uuid.uuid4()}.wav"
+        temp_path = os.path.join("temp", temp_filename)
+        os.makedirs("temp", exist_ok=True)
+        file.save(temp_path)
+        
+        # Extract features
+        audio_features = extract_audio_features(temp_path)
+        
+        # Default value: Age=60, Tremor=0, Handwriting=0 (Assume healthy if not provided)
+        features = {
+            'age': float(request.form.get('age', 60)),
+            'tremor_score': float(request.form.get('tremor_score', 0)),
+            'handwriting_score': float(request.form.get('handwriting_score', 0)),
+            'jitter_local': audio_features['jitter_local'],
+            'shimmer_local': audio_features['shimmer_local']
+        }
+        
+        # Predict
+        result = model_handler.predict_single(features)
+        
+        # Clean up
+        if os.path.exists(temp_path):
+            os.remove(temp_path)
+            
+        return jsonify(result), 200
+        
+    except Exception as e:
+        logger.error(f"Audio prediction error: {str(e)}")
+        if temp_path and os.path.exists(temp_path):
+            os.remove(temp_path)
+        return jsonify({"error": str(e)}), 500
 
 @app.route('/model_info', methods=['GET'])
 def model_info():
