@@ -6,13 +6,15 @@ import { Label } from '@/components/ui/label';
 import { Slider } from '@/components/ui/slider';
 import { useToast } from '@/hooks/use-toast';
 import { Activity, User, HandMetal, Mic } from 'lucide-react';
+import { api, PredictionResponse } from '@/lib/api';
+import { Brain } from 'lucide-react';
 
 interface FormData {
   age: number;
-  tremorScore: number;
-  handwritingScore: number;
-  jitter: number;
-  shimmer: number;
+  tremor_score: number;
+  handwriting_score: number;
+  jitter_local: number;
+  shimmer_local: number;
   bradykinesia: number;
   rigidity: number;
 }
@@ -21,26 +23,36 @@ const QuestionnaireForm = () => {
   const { toast } = useToast();
   const [formData, setFormData] = useState<FormData>({
     age: 65,
-    tremorScore: 1,
-    handwritingScore: 1,
-    jitter: 0.5,
-    shimmer: 0.3,
+    tremor_score: 1,
+    handwriting_score: 1,
+    jitter_local: 0.5,
+    shimmer_local: 0.3,
     bradykinesia: 1,
     rigidity: 1,
   });
   const [isLoading, setIsLoading] = useState(false);
+  const [result, setResult] = useState<PredictionResponse | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
 
     try {
-      // Simulate API call to Flask backend
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      // Filter out UI-only fields
+      const apiData = {
+        age: formData.age,
+        tremor_score: formData.tremor_score,
+        handwriting_score: formData.handwriting_score,
+        jitter_local: formData.jitter_local,
+        shimmer_local: formData.shimmer_local
+      };
+
+      const response = await api.predict(apiData);
+      setResult(response);
       
       toast({
         title: "Assessment Complete",
-        description: "Your results have been calculated and displayed below.",
+        description: "Analysis processed successfully.",
       });
     } catch (error) {
       toast({
@@ -78,6 +90,79 @@ const QuestionnaireForm = () => {
             </CardDescription>
           </CardHeader>
           <CardContent className="p-8">
+            {result ? (
+                <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                    <div className={`p-6 rounded-2xl border ${result.pd_probability > 0.5 ? 'bg-red-50 border-red-200 dark:bg-red-900/10' : 'bg-green-50 border-green-200 dark:bg-green-900/10'}`}>
+                        <div className="flex items-center gap-4 mb-4">
+                            <div className={`p-3 rounded-full ${result.pd_probability > 0.5 ? 'bg-red-100 text-red-600' : 'bg-green-100 text-green-600'}`}>
+                                <Brain className="w-8 h-8" />
+                            </div>
+                            <div>
+                                <h3 className="text-xl font-bold">Analysis Result</h3>
+                                <p className="text-muted-foreground">Based on provided clinical biomarkers</p>
+                            </div>
+                        </div>
+                        
+                        <div className="grid md:grid-cols-2 gap-6 mt-6">
+                            <div>
+                                <p className="text-sm font-medium text-muted-foreground mb-1">PD Probability</p>
+                                <div className="flex items-baseline gap-2">
+                                    <span className={`text-4xl font-bold ${result.pd_probability > 0.5 ? 'text-red-600' : 'text-green-600'}`}>
+                                        {(result.pd_probability * 100).toFixed(1)}%
+                                    </span>
+                                    <span className="text-sm font-medium text-muted-foreground">confidence</span>
+                                </div>
+                                <p className={`mt-2 text-sm font-medium ${result.pd_probability > 0.5 ? 'text-red-700' : 'text-green-700'}`}>
+                                    {result.pd_probability > 0.5 ? 'High probability of Parkinson\'s traits' : 'Low probability of Parkinson\'s traits'}
+                                </p>
+                            </div>
+                            
+                            <div className="space-y-3">
+                                <p className="text-sm font-medium text-muted-foreground">Stage Probability</p>
+                                <div className="space-y-2">
+                                    <div className="flex justify-between text-sm">
+                                        <span>Early Stage</span>
+                                        <span className="font-bold">{(result.stage_probs.early * 100).toFixed(0)}%</span>
+                                    </div>
+                                    <div className="h-2 bg-secondary rounded-full overflow-hidden">
+                                        <div className="h-full bg-blue-500" style={{ width: `${result.stage_probs.early * 100}%` }} />
+                                    </div>
+                                    
+                                    <div className="flex justify-between text-sm">
+                                        <span>Mid Stage</span>
+                                        <span className="font-bold">{(result.stage_probs.mid * 100).toFixed(0)}%</span>
+                                    </div>
+                                    <div className="h-2 bg-secondary rounded-full overflow-hidden">
+                                        <div className="h-full bg-yellow-500" style={{ width: `${result.stage_probs.mid * 100}%` }} />
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {result.top_features && result.top_features.length > 0 && (
+                            <div className="mt-6 pt-6 border-t border-border/50">
+                                <p className="text-sm font-medium text-muted-foreground mb-3">Key Contributing Factors</p>
+                                <div className="flex flex-wrap gap-2">
+                                    {result.top_features.map((feature, i) => (
+                                        <span key={i} className="px-3 py-1 bg-background rounded-full border shadow-sm text-sm font-medium">
+                                            {feature.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                                        </span>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                    
+                    <Button 
+                        variant="outline" 
+                        size="lg" 
+                        className="w-full"
+                        onClick={() => setResult(null)}
+                    >
+                        Start New Assessment
+                    </Button>
+                </div>
+            ) : (
             <form onSubmit={handleSubmit} className="space-y-8">
               <div className="grid md:grid-cols-2 gap-8">
                 {/* Demographics */}
@@ -113,15 +198,15 @@ const QuestionnaireForm = () => {
                       <Label>Tremor Score (0-4)</Label>
                       <div className="px-2 py-4 cursor-pointer">
                         <Slider
-                          value={[formData.tremorScore]}
-                          onValueChange={(value) => updateFormData('tremorScore', value[0])}
+                          value={[formData.tremor_score]}
+                          onValueChange={(value) => updateFormData('tremor_score', value[0])}
                           max={4}
                           step={0.5}
                           className="w-full"
                         />
                         <div className="flex justify-between text-sm text-muted-foreground mt-1">
                           <span>None</span>
-                          <span className="font-medium">{formData.tremorScore}</span>
+                          <span className="font-medium">{formData.tremor_score}</span>
                           <span>Severe</span>
                         </div>
                       </div>
@@ -177,15 +262,15 @@ const QuestionnaireForm = () => {
                       <Label>Jitter (%)</Label>
                       <div className="px-2 py-4 cursor-pointer">
                         <Slider
-                          value={[formData.jitter]}
-                          onValueChange={(value) => updateFormData('jitter', value[0])}
+                          value={[formData.jitter_local]}
+                          onValueChange={(value) => updateFormData('jitter_local', value[0])}
                           max={2}
                           step={0.1}
                           className="w-full"
                         />
                         <div className="flex justify-between text-sm text-muted-foreground mt-1">
                           <span>0%</span>
-                          <span className="font-medium">{formData.jitter.toFixed(1)}%</span>
+                          <span className="font-medium">{formData.jitter_local.toFixed(1)}%</span>
                           <span>2%</span>
                         </div>
                       </div>
@@ -195,15 +280,15 @@ const QuestionnaireForm = () => {
                       <Label>Shimmer (%)</Label>
                       <div className="px-2 py-4 cursor-pointer">
                         <Slider
-                          value={[formData.shimmer]}
-                          onValueChange={(value) => updateFormData('shimmer', value[0])}
+                          value={[formData.shimmer_local]}
+                          onValueChange={(value) => updateFormData('shimmer_local', value[0])}
                           max={1}
                           step={0.05}
                           className="w-full"
                         />
                         <div className="flex justify-between text-sm text-muted-foreground mt-1">
                           <span>0%</span>
-                          <span className="font-medium">{formData.shimmer.toFixed(2)}%</span>
+                          <span className="font-medium">{formData.shimmer_local.toFixed(2)}%</span>
                           <span>1%</span>
                         </div>
                       </div>
@@ -222,15 +307,15 @@ const QuestionnaireForm = () => {
                     <Label>Handwriting Score (0-4)</Label>
                     <div className="px-2 py-4 cursor-pointer">
                       <Slider
-                        value={[formData.handwritingScore]}
-                        onValueChange={(value) => updateFormData('handwritingScore', value[0])}
+                        value={[formData.handwriting_score]}
+                        onValueChange={(value) => updateFormData('handwriting_score', value[0])}
                         max={4}
                         step={0.5}
                         className="w-full"
                       />
                       <div className="flex justify-between text-sm text-muted-foreground mt-1">
                         <span>Normal</span>
-                        <span className="font-medium">{formData.handwritingScore}</span>
+                        <span className="font-medium">{formData.handwriting_score}</span>
                         <span>Severe</span>
                       </div>
                     </div>
@@ -249,6 +334,7 @@ const QuestionnaireForm = () => {
                 </Button>
               </div>
             </form>
+            )}
           </CardContent>
         </Card>
       </div>
