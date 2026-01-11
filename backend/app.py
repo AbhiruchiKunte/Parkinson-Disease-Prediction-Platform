@@ -66,20 +66,36 @@ def predict():
 
 @app.route('/predict_csv', methods=['POST'])
 def predict_csv():
-    """Batch prediction endpoint for CSV data"""
+    """Batch prediction endpoint for CSV, JSON, and Excel data"""
     try:
         if 'file' not in request.files:
             return jsonify({"error": "No file provided"}), 400
         
         file = request.files['file']
         
-        if file.filename == '' or not file.filename.endswith('.csv'):
-            return jsonify({"error": "Please provide a valid CSV file"}), 400
+        if file.filename == '':
+            return jsonify({"error": "No selected file"}), 400
+            
+        filename = file.filename.lower()
         
-        # Process CSV file
-        df = pd.read_csv(file)
+        # Determine file type and load data
+        try:
+            if filename.endswith('.csv'):
+                df = pd.read_csv(file)
+            elif filename.endswith('.json'):
+                df = pd.read_json(file)
+            elif filename.endswith(('.xls', '.xlsx')):
+                df = pd.read_excel(file)
+            elif filename.endswith(('.doc', '.docx')):
+                return jsonify({"error": "Word documents are not currently supported for automated data extraction. Please use CSV, JSON, or Excel."}), 400
+            else:
+                return jsonify({"error": "Unsupported file format. Please upload CSV, JSON, or Excel."}), 400
+        except Exception as e:
+            logger.error(f"Error parsing file {filename}: {str(e)}")
+            return jsonify({"error": f"Failed to parse file: {str(e)}"}), 400
         
         # Validate and process batch data
+        # We can reuse process_csv_batch as it expects a DataFrame
         batch_results = process_csv_batch(df, model_handler)
         
         return jsonify({
@@ -90,10 +106,10 @@ def predict_csv():
         }), 200
         
     except pd.errors.EmptyDataError:
-        return jsonify({"error": "Empty CSV file"}), 400
+        return jsonify({"error": "Empty file provided"}), 400
     except Exception as e:
         logger.error(f"Batch prediction error: {str(e)}")
-        return jsonify({"error": "Error processing CSV file"}), 500
+        return jsonify({"error": "Error processing batch file"}), 500
 
 @app.route('/predict_audio', methods=['POST'])
 def predict_audio():

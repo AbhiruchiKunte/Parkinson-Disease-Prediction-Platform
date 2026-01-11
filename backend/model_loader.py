@@ -1,3 +1,4 @@
+import joblib
 import pickle
 import pandas as pd
 import numpy as np
@@ -26,37 +27,73 @@ class ModelHandler:
         self.scaler = None
         self.pca = None
         self.classifier = None
+        self.svm_classifier = None
         self.feature_names = [
             'age', 'tremor_score', 'handwriting_score', 
             'jitter_local', 'shimmer_local'
         ]
         self.load_models()
     
+    def _load_component(self, name, joblib_name, pkl_name):
+        """Helper to load a component trying joblib first then pickle"""
+        joblib_path = self.model_path / joblib_name
+        pkl_path = self.model_path / pkl_name
+        
+        if joblib_path.exists():
+            try:
+                component = joblib.load(joblib_path)
+                logger.info(f"{name} loaded successfully from {joblib_name}")
+                return component
+            except Exception as e:
+                logger.error(f"Error loading {name} from {joblib_name}: {e}")
+                
+        if pkl_path.exists():
+            try:
+                with open(pkl_path, 'rb') as f:
+                    component = pickle.load(f)
+                logger.info(f"{name} loaded successfully from {pkl_name}")
+                return component
+            except Exception as e:
+                logger.error(f"Error loading {name} from {pkl_name}: {e}")
+        
+        return None
+
     def load_models(self):
         """Load all model components"""
         try:
             # Load scaler
-            scaler_path = self.model_path / 'parkinson_scaler.pkl'
-            if scaler_path.exists():
-                with open(scaler_path, 'rb') as f:
-                    self.scaler = pickle.load(f)
-                logger.info("Scaler loaded successfully")
+            self.scaler = self._load_component(
+                "Scaler", 
+                'parkinson_scaler.joblib', 
+                'parkinson_scaler.pkl'
+            )
             
             # Load PCA
-            pca_path = self.model_path / 'parkinson_pca.pkl'
-            if pca_path.exists():
-                with open(pca_path, 'rb') as f:
-                    self.pca = pickle.load(f)
-                logger.info("PCA loaded successfully")
+            self.pca = self._load_component(
+                "PCA", 
+                'parkinson_pca.joblib', 
+                'parkinson_pca.pkl'
+            )
             
-            # Load classifier
-            classifier_path = self.model_path / 'parkinson_rf_model.pkl'
-            if classifier_path.exists():
-                with open(classifier_path, 'rb') as f:
-                    self.classifier = pickle.load(f)
-                logger.info("Classifier loaded successfully")
-            else:
-                logger.warning("Classifier model not found. You may need to train models first.")
+            # Load classifier (Random Forest)
+            self.classifier = self._load_component(
+                "RF Classifier", 
+                'parkinson_rf_model.joblib', 
+                'parkinson_rf_model.pkl'
+            )
+            
+            # Load SVM classifier
+            self.svm_classifier = self._load_component(
+                "SVM Classifier", 
+                'parkinson_svm_model.joblib', 
+                'parkinson_svm_model.pkl'
+            )
+            
+            if self.classifier is None:
+                logger.warning("RF Classifier model not found.")
+            
+            if self.svm_classifier is None:
+                logger.warning("SVM Classifier model not found.")
                 
         except Exception as e:
             logger.error(f"Error loading models: {str(e)}")
@@ -105,17 +142,46 @@ class ModelHandler:
         # Preprocess features
         X = self.preprocess_features(features_dict)
         
-        # Get prediction probability
-        pd_prob = self.classifier.predict_proba(X)[0][1]  # Assuming binary classification
+        # Get predictions
+        pd_prob_rf = 0.0
+        pd_prob_svm = 0.0
+        
+        # Random Forest Prediction
+        if self.classifier:
+            try:
+                pd_prob_rf = self.classifier.predict_proba(X)[0][1]
+            except Exception as e:
+                logger.error(f"RF prediction error: {e}")
+        
+        # SVM Prediction
+        if self.svm_classifier:
+            try:
+                # Check if SVM supports predict_proba
+                if hasattr(self.svm_classifier, "predict_proba"):
+                    pd_prob_svm = self.svm_classifier.predict_proba(X)[0][1]
+                else:
+                    # Fallback for SVMs without probability output (e.g. standard SVC without probability=True)
+                    # Use decision function and sigmoid or just basic prediction
+                    pred = self.svm_classifier.predict(X)[0]
+                    pd_prob_svm = 1.0 if pred == 1 else 0.0
+            except Exception as e:
+                logger.error(f"SVM prediction error: {e}")
+        
+        # Use RF probability as the main one for backward compatibility, 
+        # but you might want to average them or strictly return both.
+        # Here we return both explicit keys.
         
         # Calculate feature importance (simplified)
         feature_importance = self.calculate_feature_importance(features_dict)
         
-        # Simulate stage probabilities based on PD probability
-        stage_probs = self.calculate_stage_probabilities(pd_prob)
+        # Simulate stage probabilities based on RF probability (or average)
+        # Using RF probability for stage calculation for consistency
+        stage_probs = self.calculate_stage_probabilities(pd_prob_rf)
         
         return {
-            "pd_probability": round(pd_prob, 3),
+            "pd_probability": round(pd_prob_rf, 3), # Default for existing frontend
+            "pd_probability_rf": round(pd_prob_rf, 3),
+            "pd_probability_svm": round(pd_prob_svm, 3),
             "stage_probs": stage_probs,
             "top_features": feature_importance
         }

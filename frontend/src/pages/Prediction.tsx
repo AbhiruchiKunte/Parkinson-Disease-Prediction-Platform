@@ -20,11 +20,17 @@ const Prediction = () => {
       </div>
 
       <Tabs defaultValue={defaultTab} className="max-w-5xl mx-auto">
-        <TabsList className="grid w-full grid-cols-2 mb-8 h-14 bg-muted/50 p-1">
-          <TabsTrigger value="assessment" className="h-full text-lg data-[state=active]:bg-background data-[state=active]:shadow-sm">
+        <TabsList className="grid w-full grid-cols-2 mb-8 h-16 bg-muted/30 p-1.5 rounded-xl border">
+          <TabsTrigger 
+            value="assessment" 
+            className="h-full text-lg font-medium rounded-lg data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md transition-all duration-200"
+          >
             Clinical Assessment
           </TabsTrigger>
-          <TabsTrigger value="upload" className="h-full text-lg data-[state=active]:bg-background data-[state=active]:shadow-sm">
+          <TabsTrigger 
+            value="upload" 
+            className="h-full text-lg font-medium rounded-lg data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md transition-all duration-200"
+          >
             Batch Upload
           </TabsTrigger>
         </TabsList>
