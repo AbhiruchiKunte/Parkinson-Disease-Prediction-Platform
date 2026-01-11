@@ -14,192 +14,244 @@ interface CsvData {
 }
 
 const CsvUpload = () => {
-  const { toast } = useToast();
-  const [isDragActive, setIsDragActive] = useState(false);
-  const [csvData, setCsvData] = useState<CsvData | null>(null);
-  const [isUploading, setIsUploading] = useState(false);
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const [dragActive, setDragActive] = useState(false);
-  const [batchResults, setBatchResults] = useState<BatchPredictionResponse | null>(null);
-
-  const handleDrag = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (e.type === "dragenter" || e.type === "dragover") {
-      setDragActive(true);
-    } else if (e.type === "dragleave") {
+    const { toast } = useToast();
+    const [isDragActive, setIsDragActive] = useState(false);
+    const [csvData, setCsvData] = useState<CsvData | null>(null);
+    const [isUploading, setIsUploading] = useState(false);
+    const [isProcessing, setIsProcessing] = useState(false);
+    const [selectedFile, setSelectedFile] = useState<File | null>(null);
+    const fileInputRef = useRef<HTMLInputElement>(null);
+    const [dragActive, setDragActive] = useState(false);
+    const [batchResults, setBatchResults] = useState<BatchPredictionResponse | null>(null);
+  
+    const handleDrag = useCallback((e: React.DragEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (e.type === "dragenter" || e.type === "dragover") {
+        setDragActive(true);
+      } else if (e.type === "dragleave") {
+        setDragActive(false);
+      }
+    }, []);
+  
+    const handleDrop = useCallback((e: React.DragEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
       setDragActive(false);
-    }
-  }, []);
+      
+      const files = e.dataTransfer.files;
+      if (files && files[0]) {
+        handleFile(files[0]);
+      }
+    }, []);
+  
+    const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
+      const files = e.target.files;
+      if (files && files[0]) {
+        handleFile(files[0]);
+      }
+    };
+  
+    const handleFile = (file: File) => {
+        const validExtensions = ['.csv', '.json', '.xlsx', '.xls', '.doc', '.docx'];
+        const fileExtension = '.' + file.name.split('.').pop()?.toLowerCase();
+        
+        if (!validExtensions.includes(fileExtension)) {
+            toast({
+            title: "Invalid File Type",
+            description: "Please upload a CSV, JSON, Excel, or Document file.",
+            variant: "destructive",
+            });
+            return;
+        }
 
-  const handleDrop = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setDragActive(false);
-    
-    const files = e.dataTransfer.files;
-    if (files && files[0]) {
-      handleFile(files[0]);
-    }
-  }, []);
-
-  const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (files && files[0]) {
-      handleFile(files[0]);
-    }
-  };
-
-  const handleFile = (file: File) => {
-    if (!file.name.endsWith('.csv')) {
-      toast({
-        title: "Invalid File Type",
-        description: "Please upload a CSV file.",
-        variant: "destructive",
-      });
-      return;
-    }
-    if (file && file.type === "text/csv") {
       setSelectedFile(file);
       setIsUploading(true);
 
-      Papa.parse(file, {
-        header: true,
-        skipEmptyLines: true,
-        complete: (results) => {
-          if (results.errors.length > 0) {
-            toast({
-              title: "Parse Error",
-              description: "Failed to parse CSV file. Please check the format.",
-              variant: "destructive",
-            });
-            setIsUploading(false);
-            return;
+      if (fileExtension === '.csv') {
+        Papa.parse(file, {
+          header: true,
+          skipEmptyLines: true,
+          complete: (results) => {
+             // ... existing CSV logic ...
+             const headers = results.meta.fields || [];
+             const data = results.data;
+             setCsvData({ data, headers, fileName: file.name });
+             setIsUploading(false);
+             toast({ title: "File Uploaded", description: `Loaded CSV with ${data.length} records.` });
+          },
+          error: () => {
+             setIsUploading(false);
+             toast({ title: "Error", description: "Failed to parse CSV.", variant: "destructive" });
           }
-
-          const headers = results.meta.fields || [];
-          const data = results.data;
-
-          setCsvData({
-            data: data,
-            headers: headers,
-            fileName: file.name,
-          });
-
+        });
+      } else if (fileExtension === '.json') {
+          const reader = new FileReader();
+          reader.onload = (e) => {
+              try {
+                  const json = JSON.parse(e.target?.result as string);
+                  const data = Array.isArray(json) ? json : [json];
+                  const headers = data.length > 0 ? Object.keys(data[0]) : [];
+                  setCsvData({ data, headers, fileName: file.name });
+                  setIsUploading(false);
+                  toast({ title: "File Uploaded", description: `Loaded JSON with ${data.length} records.` });
+              } catch (err) {
+                  setIsUploading(false);
+                  toast({ title: "Error", description: "Invalid JSON format.", variant: "destructive" });
+              }
+          };
+          reader.readAsText(file);
+      } else {
+          // Excel or Doc - No preview, just state file is ready
+          // For visualization purposes, we might set a dummy "csvData" or just handle it differently.
+          // To keep UI simple, we'll confirm selection but not show detailed tabular preview for these complex binaries on client side.
+          setCsvData({ data: [], headers: [], fileName: file.name }); 
           setIsUploading(false);
-          toast({
-             title: "File Uploaded Successfully",
-             description: `Loaded ${data.length} records from ${file.name}`,
-           });
-        }
-      });
-    }
-  };
-
-  const processBatch = async () => {
-    if (!csvData || !selectedFile) return;
-
-    setIsProcessing(true);
-    
-    try {
-      const response = await api.predictCsv(selectedFile);
-      setBatchResults(response);
+          toast({ title: "File Selected", description: `${file.name} ready for processing.` });
+      }
+    };
+  
+    // ... existing processBatch ...
+    const processBatch = async () => {
+      if (!selectedFile) return; // Removed !csvData check since binary files might be empty in client preview
+  
+      setIsProcessing(true);
       
-      toast({
-        title: "Batch Processing Complete",
-        description: `Successfully analyzed ${response.total_records} patient records.`,
-      });
-    } catch (error) {
-      toast({
-        title: "Processing Error",
-        description: error instanceof Error ? error.message : "Failed to process batch data. Please try again.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsProcessing(false);
-    }
-  };
+      try {
+        const response = await api.predictCsv(selectedFile);
+        setBatchResults(response);
+        
+        toast({
+          title: "Batch Processing Complete",
+          description: `Successfully analyzed ${response.total_records} patient records.`,
+        });
+      } catch (error) {
+        toast({
+          title: "Processing Error",
+          description: error instanceof Error ? error.message : "Failed to process batch data. Please try again.",
+          variant: "destructive",
+        });
+      } finally {
+        setIsProcessing(false);
+      }
+    };
+  
+    const removeFile = () => {
+      setCsvData(null);
+      setSelectedFile(null);
+      setBatchResults(null);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    };
+  
+    return (
+      <section id="upload" className="py-16 bg-secondary/30">
+        <div className="container mx-auto px-4">
+          <div className="text-center mb-12">
+            <h2 className="text-3xl font-bold text-foreground mb-4">Batch Analysis</h2>
+            <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+              Upload patient datasets for large-scale Parkinson's screening and analysis.
+            </p>
+          </div>
+  
+          <div className="max-w-4xl mx-auto space-y-6">
+            
+            {/* Instructions Card */}
+            <div className="bg-blue-50/50 dark:bg-blue-900/10 border border-blue-100 dark:border-blue-800 rounded-xl p-6">
+                <h3 className="flex items-center gap-2 font-semibold text-blue-900 dark:text-blue-200 mb-3">
+                    <AlertCircle className="h-5 w-5" />
+                    Upload Instructions
+                </h3>
+                <div className="grid md:grid-cols-2 gap-6 text-sm text-muted-foreground">
+                    <div>
+                        <p className="font-medium text-foreground mb-1">Supported Formats:</p>
+                        <ul className="list-disc list-inside space-y-1 ml-1">
+                            <li>CSV (.csv) - Comma separated values</li>
+                            <li>JSON (.json) - Structured data arrays</li>
+                            <li>Excel (.xlsx, .xls) - Spreadsheets</li>
+                            <li>Word (.doc, .docx) - <i>Experimental support</i></li>
+                        </ul>
+                    </div>
+                    <div>
+                        <p className="font-medium text-foreground mb-1">Required Columns/Keys:</p>
+                        <p className="mb-2">Ensure your data contains these headers:</p>
+                        <div className="flex flex-wrap gap-2">
+                            {['age', 'tremor_score', 'handwriting_score', 'jitter_local', 'shimmer_local'].map(k => (
+                                <span key={k} className="px-2 py-0.5 bg-background border rounded text-xs font-mono">
+                                    {k}
+                                </span>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+            </div>
 
-  const removeFile = () => {
-    setCsvData(null);
-    setSelectedFile(null);
-    setBatchResults(null);
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
-    }
-  };
-
-  return (
-    <section id="upload" className="py-16 bg-secondary/30">
-      <div className="container mx-auto px-4">
-        <div className="text-center mb-12">
-          <h2 className="text-3xl font-bold text-foreground mb-4">Batch Analysis</h2>
-          <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-            Upload patient datasets in CSV format for large-scale Parkinson's screening and analysis.
-          </p>
-        </div>
-
-        <div className="max-w-4xl mx-auto space-y-6">
-          <Card className="shadow-elevated">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <FileSpreadsheet className="h-5 w-5 text-primary" />
-                Dataset Upload
-              </CardTitle>
-              <CardDescription>
-                Upload a CSV file containing patient data for batch processing.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="p-8">
-              {!csvData ? (
-                  <div
-                    className={`border-2 border-dashed rounded-lg p-8 text-center transition-all ${
-                      dragActive 
-                        ? 'border-primary bg-medical-blue-light' 
-                        : 'border-border hover:border-primary/50'
-                    }`}
-                    onDragEnter={handleDrag}
-                    onDragLeave={handleDrag}
-                    onDragOver={handleDrag}
-                    onDrop={handleDrop}
-                  >
-                    <Upload className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-                    <h3 className="text-lg font-semibold mb-2">Upload CSV File</h3>
-                    <p className="text-muted-foreground mb-4">
-                      Drag and drop your file here, or click to browse
-                    </p>
-                    <input
-                      type="file"
-                      accept=".csv"
-                      onChange={handleFileInput}
-                      className="hidden"
-                      id="csv-upload"
-                      ref={fileInputRef}
-                    />
-                    <Button asChild variant="outline">
-                      <label htmlFor="csv-upload" className="cursor-pointer">
-                        Choose File
-                      </label>
-                    </Button>
-                  </div>
-              ) : (
-                  <div className="flex items-center justify-between p-4 bg-muted rounded-lg">
-                      <div className="flex items-center gap-3">
-                          <div className="p-2 bg-primary/10 rounded-full">
-                              <FileSpreadsheet className="h-6 w-6 text-primary" />
-                          </div>
-                          <div>
-                              <p className="font-medium">{csvData.fileName}</p>
-                              <p className="text-xs text-muted-foreground">{csvData.data.length} records</p>
-                          </div>
-                      </div>
-                      <Button variant="ghost" size="icon" onClick={removeFile}>
-                          <X className="h-5 w-5 text-muted-foreground hover:text-destructive" />
+            <Card className="shadow-elevated">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <FileSpreadsheet className="h-5 w-5 text-primary" />
+                  Dataset Upload
+                </CardTitle>
+                <CardDescription>
+                  Select a file from your computer for batch processing.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="p-8">
+                {!selectedFile ? (
+                    <div
+                      className={`border-2 border-dashed rounded-lg p-8 text-center transition-all ${
+                        dragActive 
+                          ? 'border-primary bg-medical-blue-light' 
+                          : 'border-border hover:border-primary/50'
+                      }`}
+                      onDragEnter={handleDrag}
+                      onDragLeave={handleDrag}
+                      onDragOver={handleDrag}
+                      onDrop={handleDrop}
+                    >
+                      <Upload className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+                      <h3 className="text-lg font-semibold mb-2">Upload Dataset</h3>
+                      <p className="text-muted-foreground mb-4">
+                        Drag and drop, or click to browse
+                      </p>
+                      <input
+                        type="file"
+                        accept=".csv,.json,.xlsx,.xls,.doc,.docx"
+                        onChange={handleFileInput}
+                        className="hidden"
+                        id="csv-upload"
+                        ref={fileInputRef}
+                      />
+                      <Button asChild variant="outline">
+                        <label htmlFor="csv-upload" className="cursor-pointer">
+                          Choose File
+                        </label>
                       </Button>
-                  </div>
-              )}
+                      <p className="text-xs text-muted-foreground mt-4">
+                          Supports CSV, JSON, Excel, DOC
+                      </p>
+                    </div>
+                ) : (
+                    <div className="flex items-center justify-between p-4 bg-muted rounded-lg">
+                        <div className="flex items-center gap-3">
+                            <div className="p-2 bg-primary/10 rounded-full">
+                                {selectedFile.name.endsWith('.csv') || selectedFile.name.endsWith('.xlsx') ? (
+                                    <FileSpreadsheet className="h-6 w-6 text-primary" />
+                                ) : (
+                                    <FileText className="h-6 w-6 text-primary" />
+                                )}
+                            </div>
+                            <div>
+                                <p className="font-medium">{selectedFile.name}</p>
+                                <p className="text-xs text-muted-foreground">{(selectedFile.size / 1024).toFixed(1)} KB</p>
+                            </div>
+                        </div>
+                        <Button variant="ghost" size="icon" onClick={removeFile}>
+                            <X className="h-5 w-5 text-muted-foreground hover:text-destructive" />
+                        </Button>
+                    </div>
+                )}
 
               {isUploading && (
                 <div className="mt-4 text-center">

@@ -10,7 +10,7 @@ import { api, PredictionResponse } from '@/lib/api';
 import { Brain } from 'lucide-react';
 
 interface FormData {
-  age: number;
+  age: number | '';
   tremor_score: number;
   handwriting_score: number;
   jitter_local: number;
@@ -19,28 +19,40 @@ interface FormData {
   rigidity: number;
 }
 
+const INITIAL_STATE: FormData = {
+  age: '',
+  tremor_score: 0,
+  handwriting_score: 0,
+  jitter_local: 0,
+  shimmer_local: 0,
+  bradykinesia: 0,
+  rigidity: 0,
+};
+
 const QuestionnaireForm = () => {
   const { toast } = useToast();
-  const [formData, setFormData] = useState<FormData>({
-    age: 65,
-    tremor_score: 1,
-    handwriting_score: 1,
-    jitter_local: 0.5,
-    shimmer_local: 0.3,
-    bradykinesia: 1,
-    rigidity: 1,
-  });
+  const [formData, setFormData] = useState<FormData>(INITIAL_STATE);
   const [isLoading, setIsLoading] = useState(false);
   const [result, setResult] = useState<PredictionResponse | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (formData.age === '' || Number(formData.age) < 18) {
+         toast({
+            title: "Invalid Input",
+            description: "Please enter a valid age (minimum 18).",
+            variant: "destructive",
+          });
+          return;
+    }
+
     setIsLoading(true);
 
     try {
       // Filter out UI-only fields
       const apiData = {
-        age: formData.age,
+        age: Number(formData.age),
         tremor_score: formData.tremor_score,
         handwriting_score: formData.handwriting_score,
         jitter_local: formData.jitter_local,
@@ -65,8 +77,13 @@ const QuestionnaireForm = () => {
     }
   };
 
-  const updateFormData = (field: keyof FormData, value: number) => {
+  const updateFormData = (field: keyof FormData, value: number | string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
+  };
+
+  const handleReset = () => {
+    setResult(null);
+    setFormData(INITIAL_STATE);
   };
 
   return (
@@ -105,15 +122,44 @@ const QuestionnaireForm = () => {
                         
                         <div className="grid md:grid-cols-2 gap-6 mt-6">
                             <div>
-                                <p className="text-sm font-medium text-muted-foreground mb-1">PD Probability</p>
-                                <div className="flex items-baseline gap-2">
-                                    <span className={`text-4xl font-bold ${result.pd_probability > 0.5 ? 'text-red-600' : 'text-green-600'}`}>
-                                        {(result.pd_probability * 100).toFixed(1)}%
-                                    </span>
-                                    <span className="text-sm font-medium text-muted-foreground">confidence</span>
+                                <p className="text-sm font-medium text-muted-foreground mb-3">PD Probability (Combined)</p>
+                                
+                                {/* Random Forest Result */}
+                                <div className="mb-4">
+                                    <div className="flex justify-between items-center mb-1">
+                                        <span className="text-sm font-medium">Random Forest</span>
+                                        <span className={`text-lg font-bold ${(result.pd_probability_rf ?? result.pd_probability) > 0.5 ? 'text-red-600' : 'text-green-600'}`}>
+                                           {((result.pd_probability_rf ?? result.pd_probability) * 100).toFixed(1)}%
+                                        </span>
+                                    </div>
+                                    <div className="h-2 bg-secondary rounded-full overflow-hidden">
+                                        <div 
+                                            className={`h-full ${(result.pd_probability_rf ?? result.pd_probability) > 0.5 ? 'bg-red-500' : 'bg-green-500'}`} 
+                                            style={{ width: `${(result.pd_probability_rf ?? result.pd_probability) * 100}%` }} 
+                                        />
+                                    </div>
                                 </div>
+
+                                {/* SVM Result */}
+                                {(result.pd_probability_svm !== undefined) && (
+                                    <div className="mb-4">
+                                        <div className="flex justify-between items-center mb-1">
+                                            <span className="text-sm font-medium">SVM Model</span>
+                                            <span className={`text-lg font-bold ${result.pd_probability_svm > 0.5 ? 'text-red-600' : 'text-green-600'}`}>
+                                            {(result.pd_probability_svm * 100).toFixed(1)}%
+                                            </span>
+                                        </div>
+                                        <div className="h-2 bg-secondary rounded-full overflow-hidden">
+                                            <div 
+                                                className={`h-full ${result.pd_probability_svm > 0.5 ? 'bg-red-500' : 'bg-green-500'}`} 
+                                                style={{ width: `${result.pd_probability_svm * 100}%` }} 
+                                            />
+                                        </div>
+                                    </div>
+                                )}
+
                                 <p className={`mt-2 text-sm font-medium ${result.pd_probability > 0.5 ? 'text-red-700' : 'text-green-700'}`}>
-                                    {result.pd_probability > 0.5 ? 'High probability of Parkinson\'s traits' : 'Low probability of Parkinson\'s traits'}
+                                    {result.pd_probability > 0.5 ? 'High probability of Parkinson\'s traits detected' : 'Low probability of Parkinson\'s traits detected'}
                                 </p>
                             </div>
                             
@@ -157,7 +203,7 @@ const QuestionnaireForm = () => {
                         variant="outline" 
                         size="lg" 
                         className="w-full"
-                        onClick={() => setResult(null)}
+                        onClick={handleReset}
                     >
                         Start New Assessment
                     </Button>
@@ -177,12 +223,38 @@ const QuestionnaireForm = () => {
                     <Input
                       id="age"
                       type="number"
+                      placeholder="Enter age"
                       value={formData.age}
-                      onChange={(e) => updateFormData('age', parseInt(e.target.value) || 0)}
+                      onChange={(e) => updateFormData('age', e.target.value === '' ? '' : parseInt(e.target.value))}
                       min="18"
                       max="100"
                       className="shadow-card"
                     />
+                    <div className="mt-2">
+                        <p className="text-sm text-muted-foreground mb-4">
+                            Please enter the patient's current age. Age is a significant risk factor for Parkinson's, with risk increasing for those over 60.
+                        </p>
+                        
+                        <div className="p-4 bg-blue-50/50 dark:bg-blue-900/10 rounded-lg border border-blue-100 dark:border-blue-800">
+                            <h4 className="text-sm font-semibold text-blue-900 dark:text-blue-300 mb-3 flex items-center gap-2">
+                                <span className="h-2 w-2 rounded-full bg-blue-600 animate-pulse"/>
+                                Analyst Instructions
+                            </h4>
+                            <div className="grid grid-cols-[85px_1fr] gap-y-2 text-sm text-muted-foreground">
+                                <span className="font-medium text-foreground">1. Setting:</span>
+                                <span>Quiet, well-lit room free from distractions.</span>
+                                
+                                <span className="font-medium text-foreground">2. Baseline:</span>
+                                <span>Patient seated comfortably for 5+ mins.</span>
+                                
+                                <span className="font-medium text-foreground">3. Observe:</span>
+                                <span>Monitor resting tremors during interview.</span>
+                                
+                                <span className="font-medium text-foreground">4. Verify:</span>
+                                <span>Check age against medical records.</span>
+                            </div>
+                        </div>
+                    </div>
                   </div>
                 </div>
 
@@ -318,6 +390,14 @@ const QuestionnaireForm = () => {
                         <span className="font-medium">{formData.handwriting_score}</span>
                         <span>Severe</span>
                       </div>
+                    </div>
+                    <div className="mt-4 p-4 bg-muted/50 rounded-lg text-sm text-muted-foreground border">
+                        <p className="font-medium mb-1">Observation Guide:</p>
+                        <ul className="list-disc list-inside space-y-1">
+                            <li>Check for Micrographia (small handwriting)</li>
+                            <li>Observe shakiness or tremors while writing</li>
+                            <li>Note any difficulty initiating the writing movement</li>
+                        </ul>
                     </div>
                   </div>
                 </div>

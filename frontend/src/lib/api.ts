@@ -13,6 +13,8 @@ export interface PredictionFeatures {
 
 export interface PredictionResponse {
   pd_probability: number;
+  pd_probability_rf?: number;
+  pd_probability_svm?: number;
   stage_probs: {
     early: number;
     mid: number;
