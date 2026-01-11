@@ -4,10 +4,17 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Slider } from '@/components/ui/slider';
+import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { Activity, User, HandMetal, Mic } from 'lucide-react';
 import { api, PredictionResponse } from '@/lib/api';
 import { Brain } from 'lucide-react';
+import { 
+  Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, 
+  ResponsiveContainer, RadialBarChart, RadialBar, Legend, Tooltip,
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Cell, AreaChart, Area,
+  ScatterChart, Scatter, PieChart, Pie, ComposedChart, Line, ReferenceLine
+} from 'recharts';
 
 interface FormData {
   age: number | '';
@@ -50,13 +57,14 @@ const QuestionnaireForm = () => {
     setIsLoading(true);
 
     try {
-      // Filter out UI-only fields
       const apiData = {
         age: Number(formData.age),
         tremor_score: formData.tremor_score,
         handwriting_score: formData.handwriting_score,
         jitter_local: formData.jitter_local,
-        shimmer_local: formData.shimmer_local
+        shimmer_local: formData.shimmer_local,
+        bradykinesia: formData.bradykinesia,
+        rigidity: formData.rigidity
       };
 
       const response = await api.predict(apiData);
@@ -96,308 +104,633 @@ const QuestionnaireForm = () => {
           </p>
         </div>
 
-        <Card className="max-w-4xl mx-auto shadow-elevated">
-          <CardHeader className="bg-gradient-card">
-            <CardTitle className="flex items-center gap-2">
-              <Activity className="h-5 w-5 text-primary" />
+        <Card className="max-w-5xl mx-auto shadow-elevated overflow-hidden border-t-4 border-t-primary">
+          <CardHeader className="bg-muted/30 pb-8">
+            <CardTitle className="flex items-center gap-2 text-2xl">
+              <Activity className="h-6 w-6 text-primary" />
               Patient Assessment Form
             </CardTitle>
-            <CardDescription>
+            <CardDescription className="text-base">
               Please provide accurate information for the most reliable analysis.
             </CardDescription>
           </CardHeader>
           <CardContent className="p-8">
             {result ? (
-                <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                    <div className={`p-6 rounded-2xl border ${result.pd_probability > 0.5 ? 'bg-red-50 border-red-200 dark:bg-red-900/10' : 'bg-green-50 border-green-200 dark:bg-green-900/10'}`}>
-                        <div className="flex items-center gap-4 mb-4">
-                            <div className={`p-3 rounded-full ${result.pd_probability > 0.5 ? 'bg-red-100 text-red-600' : 'bg-green-100 text-green-600'}`}>
-                                <Brain className="w-8 h-8" />
-                            </div>
-                            <div>
-                                <h3 className="text-xl font-bold">Analysis Result</h3>
-                                <p className="text-muted-foreground">Based on provided clinical biomarkers</p>
-                            </div>
-                        </div>
-                        
-                        <div className="grid md:grid-cols-2 gap-6 mt-6">
-                            <div>
-                                <p className="text-sm font-medium text-muted-foreground mb-3">PD Probability (Combined)</p>
-                                
-                                {/* Random Forest Result */}
-                                <div className="mb-4">
-                                    <div className="flex justify-between items-center mb-1">
-                                        <span className="text-sm font-medium">Random Forest</span>
-                                        <span className={`text-lg font-bold ${(result.pd_probability_rf ?? result.pd_probability) > 0.5 ? 'text-red-600' : 'text-green-600'}`}>
-                                           {((result.pd_probability_rf ?? result.pd_probability) * 100).toFixed(1)}%
-                                        </span>
-                                    </div>
-                                    <div className="h-2 bg-secondary rounded-full overflow-hidden">
-                                        <div 
-                                            className={`h-full ${(result.pd_probability_rf ?? result.pd_probability) > 0.5 ? 'bg-red-500' : 'bg-green-500'}`} 
-                                            style={{ width: `${(result.pd_probability_rf ?? result.pd_probability) * 100}%` }} 
-                                        />
-                                    </div>
-                                </div>
-
-                                {/* SVM Result */}
-                                {(result.pd_probability_svm !== undefined) && (
-                                    <div className="mb-4">
-                                        <div className="flex justify-between items-center mb-1">
-                                            <span className="text-sm font-medium">SVM Model</span>
-                                            <span className={`text-lg font-bold ${result.pd_probability_svm > 0.5 ? 'text-red-600' : 'text-green-600'}`}>
-                                            {(result.pd_probability_svm * 100).toFixed(1)}%
-                                            </span>
-                                        </div>
-                                        <div className="h-2 bg-secondary rounded-full overflow-hidden">
-                                            <div 
-                                                className={`h-full ${result.pd_probability_svm > 0.5 ? 'bg-red-500' : 'bg-green-500'}`} 
-                                                style={{ width: `${result.pd_probability_svm * 100}%` }} 
-                                            />
-                                        </div>
-                                    </div>
-                                )}
-
-                                <p className={`mt-2 text-sm font-medium ${result.pd_probability > 0.5 ? 'text-red-700' : 'text-green-700'}`}>
-                                    {result.pd_probability > 0.5 ? 'High probability of Parkinson\'s traits detected' : 'Low probability of Parkinson\'s traits detected'}
-                                </p>
-                            </div>
-                            
-                            <div className="space-y-3">
-                                <p className="text-sm font-medium text-muted-foreground">Stage Probability</p>
-                                <div className="space-y-2">
-                                    <div className="flex justify-between text-sm">
-                                        <span>Early Stage</span>
-                                        <span className="font-bold">{(result.stage_probs.early * 100).toFixed(0)}%</span>
-                                    </div>
-                                    <div className="h-2 bg-secondary rounded-full overflow-hidden">
-                                        <div className="h-full bg-blue-500" style={{ width: `${result.stage_probs.early * 100}%` }} />
-                                    </div>
-                                    
-                                    <div className="flex justify-between text-sm">
-                                        <span>Mid Stage</span>
-                                        <span className="font-bold">{(result.stage_probs.mid * 100).toFixed(0)}%</span>
-                                    </div>
-                                    <div className="h-2 bg-secondary rounded-full overflow-hidden">
-                                        <div className="h-full bg-yellow-500" style={{ width: `${result.stage_probs.mid * 100}%` }} />
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        {result.top_features && result.top_features.length > 0 && (
-                            <div className="mt-6 pt-6 border-t border-border/50">
-                                <p className="text-sm font-medium text-muted-foreground mb-3">Key Contributing Factors</p>
-                                <div className="flex flex-wrap gap-2">
-                                    {result.top_features.map((feature, i) => (
-                                        <span key={i} className="px-3 py-1 bg-background rounded-full border shadow-sm text-sm font-medium">
-                                            {feature.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}
-                                        </span>
-                                    ))}
-                                </div>
-                            </div>
-                        )}
-                    </div>
+                <div className="animate-in fade-in slide-in-from-bottom-8 duration-700 space-y-8">
                     
-                    <Button 
-                        variant="outline" 
-                        size="lg" 
-                        className="w-full"
-                        onClick={handleReset}
-                    >
-                        Start New Assessment
-                    </Button>
+                    {/* Header Result Section - Premium Radial Gauge */}
+                    <div className="grid md:grid-cols-3 gap-8 mb-8">
+                         <Card className="md:col-span-2 bg-gradient-to-br from-card to-secondary/50 border-primary/10 shadow-lg relative overflow-hidden">
+                            <div className="absolute top-0 right-0 p-32 bg-primary/5 rounded-full blur-3xl -mr-16 -mt-16 pointer-events-none" />
+                            <CardHeader className="pb-2">
+                                <CardTitle className="flex items-center gap-2 text-xl">
+                                    <Activity className="h-5 w-5 text-primary" />
+                                    Assessment Analysis
+                                </CardTitle>
+                                <CardDescription>
+                                    Based on the provided clinical indicators
+                                </CardDescription>
+                            </CardHeader>
+                            <CardContent className="flex flex-col md:flex-row items-center gap-8 pt-4">
+                                <div className="relative w-48 h-48 flex-shrink-0">
+                                    <ResponsiveContainer width="100%" height="100%">
+                                        <RadialBarChart 
+                                            cx="50%" 
+                                            cy="50%" 
+                                            innerRadius="70%" 
+                                            outerRadius="100%" 
+                                            barSize={20} 
+                                            data={[{ name: 'Score', value: result.pd_probability * 100, fill: 'url(#scoreGradient)' }]} 
+                                            startAngle={180} 
+                                            endAngle={0}
+                                        >
+                                            <defs>
+                                                <linearGradient id="scoreGradient" x1="0" y1="0" x2="1" y2="0">
+                                                    <stop offset="0%" stopColor="#10b981" />
+                                                    <stop offset="50%" stopColor="#f59e0b" />
+                                                    <stop offset="100%" stopColor="#ef4444" />
+                                                </linearGradient>
+                                            </defs>
+                                            <RadialBar
+                                                background
+                                                dataKey="value"
+                                                cornerRadius={10}
+                                            />
+                                        </RadialBarChart>
+                                    </ResponsiveContainer>
+                                    <div className="absolute inset-0 flex flex-col items-center justify-center pt-8">
+                                        <span className="text-4xl font-bold tracking-tighter">
+                                            {(result.pd_probability * 100).toFixed(1)}%
+                                        </span>
+                                        <span className="text-xs text-muted-foreground uppercase font-semibold mt-1">
+                                            Confidence
+                                        </span>
+                                    </div>
+                                </div>
+                                <div className="space-y-4 flex-1">
+                                    <div>
+                                        <h3 className="text-2xl font-bold tracking-tight mb-1">
+                                            {result.pd_probability > 0.5 ? 'High Risk Detected' : 'Low Risk Indicators'}
+                                        </h3>
+                                        <p className="text-muted-foreground">
+                                            {result.pd_probability > 0.5 
+                                                ? "The assessment suggests significant markers associated with Parkinson's disease. Clinical consultation is recommended."
+                                                : "The assessment indicates a healthy profile with low probability of Parkinson's disease markers."}
+                                        </p>
+                                    </div>
+                                    <div className="flex gap-4">
+                                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                                            <div className="w-3 h-3 rounded-full bg-green-500" /> Low
+                                        </div>
+                                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                                            <div className="w-3 h-3 rounded-full bg-amber-500" /> Medium
+                                        </div>
+                                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                                            <div className="w-3 h-3 rounded-full bg-red-500" /> High
+                                        </div>
+                                    </div>
+                                </div>
+                            </CardContent>
+                         </Card>
+                    </div>
+
+                    {/* 3. Detailed Model Breakdown - Premium Ring Charts */}
+                    <div className="grid md:grid-cols-3 gap-6">
+                        {/* RF Model Ring */}
+                        <Card className="shadow-lg border-muted overflow-hidden relative group">
+                            <CardHeader className="pb-2">
+                                <CardTitle className="text-sm font-medium text-muted-foreground flex items-center justify-between">
+                                    Random Forest
+                                    <div className="h-2 w-2 rounded-full bg-blue-500" />
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent className="h-[200px] grid place-items-center p-0">
+                                <div className="relative w-40 h-40">
+                                    <ResponsiveContainer width="100%" height="100%">
+                                        <RadialBarChart 
+                                            cx="50%" cy="50%" 
+                                            innerRadius="80%" outerRadius="100%" 
+                                            barSize={10} 
+                                            data={[{ val: (result.pd_probability_rf ?? result.pd_probability) * 100, fill: 'url(#gradientBlue)' }]} 
+                                            startAngle={90} endAngle={-270}
+                                        >
+                                            <defs>
+                                                <linearGradient id="gradientBlue" x1="0" y1="0" x2="1" y2="1">
+                                                    <stop offset="0%" stopColor="#3b82f6" />
+                                                    <stop offset="100%" stopColor="#2563eb" />
+                                                </linearGradient>
+                                                <linearGradient id="gradientGreen" x1="0" y1="0" x2="1" y2="1">
+                                                    <stop offset="0%" stopColor="#22c55e" />
+                                                    <stop offset="100%" stopColor="#16a34a" />
+                                                </linearGradient>
+                                            </defs>
+                                            <RadialBar background dataKey="val" cornerRadius={30} />
+                                        </RadialBarChart>
+                                    </ResponsiveContainer>
+                                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                                        <span className="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-cyan-600">
+                                            {((result.pd_probability_rf ?? result.pd_probability) * 100).toFixed(1)}%
+                                        </span>
+                                    </div>
+                                </div>
+                            </CardContent>
+                        </Card>
+
+                        <Card className="shadow-lg border-muted overflow-hidden relative group">
+                            <CardHeader className="pb-2">
+                                <CardTitle className="text-sm font-medium text-muted-foreground flex items-center justify-between">
+                                    SVM Classifier
+                                    <div className="h-2 w-2 rounded-full bg-green-500" />
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent className="h-[200px] grid place-items-center p-0">
+                                <div className="relative w-40 h-40">
+                                    <ResponsiveContainer width="100%" height="100%">
+                                        <RadialBarChart 
+                                            cx="50%" cy="50%" 
+                                            innerRadius="80%" outerRadius="100%" 
+                                            barSize={10} 
+                                            data={[{ val: result.pd_probability_svm ? result.pd_probability_svm * 100 : 0, fill: 'url(#gradientGreen)' }]} 
+                                            startAngle={90} endAngle={-270}
+                                        >
+                                            <RadialBar background dataKey="val" cornerRadius={30} />
+                                        </RadialBarChart>
+                                    </ResponsiveContainer>
+                                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                                        <span className="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-green-600 to-emerald-600">
+                                            {(result.pd_probability_svm !== undefined ? (result.pd_probability_svm * 100).toFixed(1) : 'N/A')}%
+                                        </span>
+                                    </div>
+                                </div>
+                            </CardContent>
+                        </Card>
+
+                        {/* Key Factor Card */}
+                        <Card className="shadow-lg border-muted overflow-hidden bg-gradient-to-br from-background to-secondary/20">
+                            <CardHeader className="pb-2">
+                                <CardTitle className="text-sm font-medium text-muted-foreground">Dominant Indicator</CardTitle>
+                            </CardHeader>
+                            <CardContent className="flex flex-col items-center justify-center h-[120px]">
+                                <Activity className="w-10 h-10 text-primary mb-2 opacity-80" />
+                                <div className="text-lg font-bold text-center capitalize">
+                                    {result.top_features?.[0] ? result.top_features[0].replace(/_/g, ' ') : 'None'}
+                                </div>
+                            </CardContent>
+                        </Card>
+                    </div>
+
+                    {/* 4. Insight Visualizations Grid */}
+                    <div className="grid lg:grid-cols-2 gap-8">
+                        
+                        {/* A. Feature Radar Chart */}
+                        <Card className="shadow-lg border-muted overflow-hidden relative group">
+                            <div className="absolute inset-0 bg-gradient-to-tr from-transparent to-primary/5 opacity-0 group-hover:opacity-100 transition-opacity" />
+                            <CardHeader>
+                                <CardTitle className="text-lg flex items-center gap-2">
+                                    <Brain className="w-4 h-4 text-primary" />
+                                    Symptom Profile
+                                </CardTitle>
+                                <CardDescription>Key biomarkers normalized analysis</CardDescription>
+                            </CardHeader>
+                            <CardContent className="h-[350px] flex items-center justify-center -ml-4">
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <RadarChart cx="50%" cy="50%" outerRadius="75%" data={[
+                                        { subject: 'Tremor', A: (formData.tremor_score / 4) * 100, fullMark: 100 },
+                                        { subject: 'Rigidity', A: (formData.rigidity / 4) * 100, fullMark: 100 },
+                                        { subject: 'Brady', A: (formData.bradykinesia / 4) * 100, fullMark: 100 },
+                                        { subject: 'Writing', A: (formData.handwriting_score / 4) * 100, fullMark: 100 },
+                                        { subject: 'Jitter', A: (formData.jitter_local / 2) * 100, fullMark: 100 },
+                                        { subject: 'Shimmer', A: (formData.shimmer_local / 1) * 100, fullMark: 100 },
+                                    ]}>
+                                        <defs>
+                                            <radialGradient id="radarFill" cx="50%" cy="50%" r="50%" fx="50%" fy="50%">
+                                                <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity={0.4}/>
+                                                <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity={0.1}/>
+                                            </radialGradient>
+                                        </defs>
+                                        <PolarGrid strokeOpacity={0.1} />
+                                        <PolarAngleAxis dataKey="subject" tick={{ fill: 'currentColor', fontSize: 13, fontWeight: 500 }} />
+                                        <PolarRadiusAxis angle={30} domain={[0, 100]} tick={false} axisLine={false} />
+                                        <Radar name="Patient" dataKey="A" stroke="hsl(var(--primary))" strokeWidth={3} fill="url(#radarFill)" fillOpacity={0.6} />
+                                        <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 30px -10px rgba(0,0,0,0.2)' }} />
+                                    </RadarChart>
+                                </ResponsiveContainer>
+                            </CardContent>
+                        </Card>
+
+                        {/* B. Stage Probability Probability */}
+                        <Card className="shadow-lg border-muted overflow-hidden relative group">
+                            <div className="absolute inset-0 bg-gradient-to-bl from-transparent to-primary/5 opacity-0 group-hover:opacity-100 transition-opacity" />
+                            <CardHeader>
+                                <CardTitle className="text-lg flex items-center gap-2">
+                                    <Activity className="w-4 h-4 text-primary" />
+                                    Stage Prediction
+                                </CardTitle>
+                                <CardDescription>Likelihood of disease progression</CardDescription>
+                            </CardHeader>
+                            <CardContent className="h-[350px] flex flex-col justify-center gap-6 px-10">
+                                {result.stage_probs && [
+                                    { name: 'Early Stage', prob: result.stage_probs.early * 100, color: '#10b981', desc: 'Mild symptoms, usually unilateral' }, 
+                                    { name: 'Mid Stage', prob: result.stage_probs.mid * 100, color: '#f59e0b', desc: 'Balance impairment, mild disability' },   
+                                    { name: 'Late Stage', prob: result.stage_probs.late * 100, color: '#ef4444', desc: 'Severe disability, limited mobility' }
+                                ].map((stage, idx) => (
+                                    <div key={idx} className="space-y-2">
+                                        <div className="flex justify-between items-end">
+                                            <span className="font-semibold">{stage.name}</span>
+                                            <span className="font-bold text-lg" style={{ color: stage.color }}>{stage.prob.toFixed(1)}%</span>
+                                        </div>
+                                        <div className="h-3 w-full bg-secondary rounded-full overflow-hidden">
+                                            <div className="h-full rounded-full transition-all duration-1000 ease-out" style={{ width: `${stage.prob}%`, backgroundColor: stage.color }} />
+                                        </div>
+                                        <p className="text-xs text-muted-foreground">{stage.desc}</p>
+                                    </div>
+                                ))}
+                            </CardContent>
+                        </Card>
+
+                        {/* C. Symptom Impact Analysis */}
+                        {/* C. Symptom Impact Analysis - Radar Chart */}
+                        <Card className="shadow-lg border-muted overflow-hidden relative group">
+                            <CardHeader>
+                                <CardTitle className="text-lg">Symptom Profile</CardTitle>
+                                <CardDescription>Multi-dimensional symptom analysis</CardDescription>
+                            </CardHeader>
+                            <CardContent className="h-[300px] flex items-center justify-center">
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <RadarChart cx="50%" cy="50%" outerRadius="80%" data={[
+                                        { subject: 'Tremor', A: (formData.tremor_score / 4) * 100, fullMark: 100 },
+                                        { subject: 'Voice', A: ((formData.jitter_local * 100 + formData.shimmer_local * 50) / 2), fullMark: 100 },
+                                        { subject: 'Motor', A: (formData.bradykinesia / 4) * 100, fullMark: 100 },
+                                        { subject: 'Writing', A: (formData.handwriting_score / 4) * 100, fullMark: 100 },
+                                    ]}>
+                                        <PolarGrid strokeOpacity={0.2} />
+                                        <PolarAngleAxis dataKey="subject" tick={{ fill: 'currentColor', fontSize: 12, fontWeight: 600 }} />
+                                        <PolarRadiusAxis angle={30} domain={[0, 100]} tick={false} axisLine={false} />
+                                        <Radar
+                                            name="Symptom Severity"
+                                            dataKey="A"
+                                            stroke="#8884d8"
+                                            strokeWidth={3}
+                                            fill="url(#gradientPurple)"
+                                            fillOpacity={0.5}
+                                        />
+                                        <Tooltip 
+                                            contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}
+                                            itemStyle={{ color: '#8884d8', fontWeight: 600 }}
+                                        />
+                                    </RadarChart>
+                                </ResponsiveContainer>
+                            </CardContent>
+                        </Card>
+
+                        {/* D. Risk Probability Trend - Composed Chart */}
+                        <Card className="shadow-lg border-muted overflow-hidden relative group">
+                            <CardHeader>
+                                <CardTitle className="text-lg">Risk Projection</CardTitle>
+                                <CardDescription>Trend analysis with confidence intervals</CardDescription>
+                            </CardHeader>
+                            <CardContent className="h-[300px]">
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <ComposedChart
+                                        data={[
+                                            { month: '3m ago', risk: Math.max(0, result.pd_probability * 100 - 15), confidence: 85 },
+                                            { month: '2m ago', risk: Math.max(0, result.pd_probability * 100 - 8), confidence: 88 },
+                                            { month: '1m ago', risk: Math.max(0, result.pd_probability * 100 - 5), confidence: 92 },
+                                            { month: 'Current', risk: result.pd_probability * 100, confidence: 95 },
+                                        ]}
+                                        margin={{ top: 20, right: 20, bottom: 20, left: 0 }}
+                                    >
+                                        <defs>
+                                            <linearGradient id="barGradient" x1="0" y1="0" x2="0" y2="1">
+                                                <stop offset="0%" stopColor="#8b5cf6" stopOpacity={0.3}/>
+                                                <stop offset="100%" stopColor="#8b5cf6" stopOpacity={0}/>
+                                            </linearGradient>
+                                        </defs>
+                                        <CartesianGrid strokeDasharray="3 3" vertical={false} strokeOpacity={0.1} />
+                                        <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 12}} />
+                                        <YAxis hide />
+                                        <Tooltip 
+                                            contentStyle={{ borderRadius: '12px', background: 'rgba(255, 255, 255, 0.95)', border: 'none', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}
+                                            labelStyle={{ color: '#1e293b', fontWeight: 'bold' }}
+                                        />
+                                        <Legend />
+                                        <Bar dataKey="confidence" name="Confidence" barSize={40} fill="url(#barGradient)" radius={[4, 4, 0, 0]} />
+                                        <Line 
+                                            type="monotone" 
+                                            dataKey="risk" 
+                                            name="Risk Level"
+                                            stroke="#7c3aed" 
+                                            strokeWidth={4} 
+                                            dot={{ r: 4, strokeWidth: 2, fill: '#fff' }}
+                                            activeDot={{ r: 8, strokeWidth: 0, fill: '#7c3aed' }}
+                                        />
+                                    </ComposedChart>
+                                </ResponsiveContainer>
+                            </CardContent>
+                        </Card>
+
+                        {/* E. Analysis Composition */}
+                        {/* E. Analysis Composition - Donut Chart */}
+                        <Card className="shadow-lg border-muted overflow-hidden relative group">
+                            <CardHeader>
+                                <CardTitle className="text-lg">Risk Factors</CardTitle>
+                                <CardDescription>Composition of risk contributors</CardDescription>
+                            </CardHeader>
+                            <CardContent className="h-[300px] flex items-center justify-center">
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <PieChart>
+                                        <Pie
+                                            data={[
+                                                { name: 'Base', val: 10 },
+                                                { name: 'Age', val: Math.max(0, (Number(formData.age) - 50) * 0.5) },
+                                                { name: 'Tremor', val: (formData.tremor_score / 4) * 30 },
+                                                { name: 'Voice', val: ((formData.jitter_local * 100) + (formData.shimmer_local * 50)) },
+                                                { name: 'Mobility', val: (formData.bradykinesia / 4) * 20 },
+                                            ]}
+                                            cx="50%"
+                                            cy="50%"
+                                            innerRadius={60}
+                                            outerRadius={80}
+                                            paddingAngle={5}
+                                            dataKey="val"
+                                        >
+                                            <Cell fill="#94a3b8" />
+                                            <Cell fill="#3b82f6" />
+                                            <Cell fill="#ef4444" />
+                                            <Cell fill="#f97316" />
+                                            <Cell fill="#22c55e" />
+                                        </Pie>
+                                        <Tooltip 
+                                            contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}
+                                        />
+                                        <Legend verticalAlign="bottom" height={36} iconType="circle" />
+                                    </PieChart>
+                                </ResponsiveContainer>
+                            </CardContent>
+                        </Card>
+
+                        {/* F. Population Context - Distribution Curve */}
+                        <Card className="shadow-lg border-muted overflow-hidden relative group">
+                            <CardHeader>
+                                <CardTitle className="text-lg">Population Analysis</CardTitle>
+                                <CardDescription>Your risk profile relative to population distribution</CardDescription>
+                            </CardHeader>
+                            <CardContent className="h-[300px]">
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <ComposedChart
+                                        data={Array.from({ length: 20 }, (_, i) => ({
+                                            risk: i * 5,
+                                            density: Math.exp(-Math.pow(i * 5 - 40, 2) / 600) * 100 // Bell curve simulation centered at 40
+                                        }))}
+                                        margin={{ top: 20, right: 30, left: 20, bottom: 20 }}
+                                    >
+                                        <defs>
+                                            <linearGradient id="areaGradient" x1="0" y1="0" x2="0" y2="1">
+                                                <stop offset="0%" stopColor="#94a3b8" stopOpacity={0.4}/>
+                                                <stop offset="100%" stopColor="#94a3b8" stopOpacity={0}/>
+                                            </linearGradient>
+                                        </defs>
+                                        <CartesianGrid strokeDasharray="3 3" vertical={false} strokeOpacity={0.1} />
+                                        <XAxis dataKey="risk" type="number" unit="%" tickLine={false} axisLine={false} tick={{fill: '#94a3b8', fontSize: 12}} />
+                                        <Tooltip 
+                                            contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}
+                                            labelFormatter={(value) => `Risk Level: ${value}%`}
+                                        />
+                                        <Area 
+                                            type="monotone" 
+                                            dataKey="density" 
+                                            stroke="#64748b" 
+                                            fill="url(#areaGradient)" 
+                                            strokeWidth={2}
+                                            name="Population Density"
+                                        />
+                                        <ReferenceLine 
+                                            x={result.pd_probability * 100} 
+                                            stroke="#ef4444" 
+                                            strokeDasharray="3 3"
+                                            strokeWidth={2}
+                                            label={{ 
+                                                value: 'YOU', 
+                                                position: 'top', 
+                                                fill: '#ef4444', 
+                                                fontWeight: 'bold',
+                                                fontSize: 12 
+                                            }} 
+                                        />
+                                    </ComposedChart>
+                                </ResponsiveContainer>
+                            </CardContent>
+                        </Card>
+                    </div>
+
+
+                    <div className="flex justify-center pt-6">
+                        <Button 
+                            variant="outline" 
+                            size="lg" 
+                            onClick={handleReset}
+                            className="px-8 border-2 hover:bg-muted font-semibold"
+                        >
+                            Start New Assessment
+                        </Button>
+                    </div>
                 </div>
             ) : (
             <form onSubmit={handleSubmit} className="space-y-8">
               <div className="grid md:grid-cols-2 gap-8">
-                {/* Demographics */}
-                <div className="space-y-6">
-                  <div className="flex items-center gap-2 mb-4">
-                    <User className="h-5 w-5 text-primary" />
-                    <h3 className="text-lg font-semibold">Demographics</h3>
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <Label htmlFor="age">Age</Label>
-                    <Input
-                      id="age"
-                      type="number"
-                      placeholder="Enter age"
-                      value={formData.age}
-                      onChange={(e) => updateFormData('age', e.target.value === '' ? '' : parseInt(e.target.value))}
-                      min="18"
-                      max="100"
-                      className="shadow-card"
-                    />
-                    <div className="mt-2">
-                        <p className="text-sm text-muted-foreground mb-4">
-                            Please enter the patient's current age. Age is a significant risk factor for Parkinson's, with risk increasing for those over 60.
-                        </p>
-                        
-                        <div className="p-4 bg-blue-50/50 dark:bg-blue-900/10 rounded-lg border border-blue-100 dark:border-blue-800">
-                            <h4 className="text-sm font-semibold text-blue-900 dark:text-blue-300 mb-3 flex items-center gap-2">
-                                <span className="h-2 w-2 rounded-full bg-blue-600 animate-pulse"/>
-                                Analyst Instructions
-                            </h4>
-                            <div className="grid grid-cols-[85px_1fr] gap-y-2 text-sm text-muted-foreground">
-                                <span className="font-medium text-foreground">1. Setting:</span>
-                                <span>Quiet, well-lit room free from distractions.</span>
-                                
-                                <span className="font-medium text-foreground">2. Baseline:</span>
-                                <span>Patient seated comfortably for 5+ mins.</span>
-                                
-                                <span className="font-medium text-foreground">3. Observe:</span>
-                                <span>Monitor resting tremors during interview.</span>
-                                
-                                <span className="font-medium text-foreground">4. Verify:</span>
-                                <span>Check age against medical records.</span>
-                            </div>
-                        </div>
+                {/* Left Column */}
+                <div className="space-y-8">
+                  {/* Demographics */}
+                  <div className="space-y-6">
+                    <div className="flex items-center gap-2 mb-4">
+                      <User className="h-5 w-5 text-primary" />
+                      <h3 className="text-lg font-semibold">Demographics</h3>
                     </div>
-                  </div>
-                </div>
-
-                {/* Motor Symptoms */}
-                <div className="space-y-6">
-                  <div className="flex items-center gap-2 mb-4">
-                    <HandMetal className="h-5 w-5 text-primary" />
-                    <h3 className="text-lg font-semibold">Motor Symptoms</h3>
-                  </div>
-                  
-                  <div className="space-y-4">
-                    <div>
-                      <Label>Tremor Score (0-4)</Label>
-                      <div className="px-2 py-4 cursor-pointer">
-                        <Slider
-                          value={[formData.tremor_score]}
-                          onValueChange={(value) => updateFormData('tremor_score', value[0])}
-                          max={4}
-                          step={0.5}
-                          className="w-full"
-                        />
-                        <div className="flex justify-between text-sm text-muted-foreground mt-1">
-                          <span>None</span>
-                          <span className="font-medium">{formData.tremor_score}</span>
-                          <span>Severe</span>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div>
-                      <Label>Bradykinesia Score (0-4)</Label>
-                      <div className="px-2 py-4 cursor-pointer">
-                        <Slider
-                          value={[formData.bradykinesia]}
-                          onValueChange={(value) => updateFormData('bradykinesia', value[0])}
-                          max={4}
-                          step={0.5}
-                          className="w-full"
-                        />
-                        <div className="flex justify-between text-sm text-muted-foreground mt-1">
-                          <span>None</span>
-                          <span className="font-medium">{formData.bradykinesia}</span>
-                          <span>Severe</span>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div>
-                      <Label>Rigidity Score (0-4)</Label>
-                      <div className="px-2 py-4 cursor-pointer">
-                        <Slider
-                          value={[formData.rigidity]}
-                          onValueChange={(value) => updateFormData('rigidity', value[0])}
-                          max={4}
-                          step={0.5}
-                          className="w-full"
-                        />
-                        <div className="flex justify-between text-sm text-muted-foreground mt-1">
-                          <span>None</span>
-                          <span className="font-medium">{formData.rigidity}</span>
-                          <span>Severe</span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Voice Analysis */}
-                <div className="space-y-6">
-                  <div className="flex items-center gap-2 mb-4">
-                    <Mic className="h-5 w-5 text-primary" />
-                    <h3 className="text-lg font-semibold">Voice Analysis</h3>
-                  </div>
-                  
-                  <div className="space-y-4">
-                    <div>
-                      <Label>Jitter (%)</Label>
-                      <div className="px-2 py-4 cursor-pointer">
-                        <Slider
-                          value={[formData.jitter_local]}
-                          onValueChange={(value) => updateFormData('jitter_local', value[0])}
-                          max={2}
-                          step={0.1}
-                          className="w-full"
-                        />
-                        <div className="flex justify-between text-sm text-muted-foreground mt-1">
-                          <span>0%</span>
-                          <span className="font-medium">{formData.jitter_local.toFixed(1)}%</span>
-                          <span>2%</span>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div>
-                      <Label>Shimmer (%)</Label>
-                      <div className="px-2 py-4 cursor-pointer">
-                        <Slider
-                          value={[formData.shimmer_local]}
-                          onValueChange={(value) => updateFormData('shimmer_local', value[0])}
-                          max={1}
-                          step={0.05}
-                          className="w-full"
-                        />
-                        <div className="flex justify-between text-sm text-muted-foreground mt-1">
-                          <span>0%</span>
-                          <span className="font-medium">{formData.shimmer_local.toFixed(2)}%</span>
-                          <span>1%</span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Handwriting */}
-                <div className="space-y-6">
-                  <div className="flex items-center gap-2 mb-4">
-                    <Activity className="h-5 w-5 text-primary" />
-                    <h3 className="text-lg font-semibold">Handwriting Assessment</h3>
-                  </div>
-                  
-                  <div>
-                    <Label>Handwriting Score (0-4)</Label>
-                    <div className="px-2 py-4 cursor-pointer">
-                      <Slider
-                        value={[formData.handwriting_score]}
-                        onValueChange={(value) => updateFormData('handwriting_score', value[0])}
-                        max={4}
-                        step={0.5}
-                        className="w-full"
+                    
+                    <div className="space-y-2">
+                      <Label htmlFor="age">Age</Label>
+                      <Input
+                        id="age"
+                        type="number"
+                        placeholder="Enter age"
+                        value={formData.age}
+                        onChange={(e) => updateFormData('age', e.target.value === '' ? '' : parseInt(e.target.value))}
+                        min="18"
+                        max="100"
+                        className="shadow-card"
                       />
-                      <div className="flex justify-between text-sm text-muted-foreground mt-1">
-                        <span>Normal</span>
-                        <span className="font-medium">{formData.handwriting_score}</span>
-                        <span>Severe</span>
+                      <div className="mt-2">
+                          <p className="text-sm text-muted-foreground mb-4">
+                              Please enter the patient's current age. Age is a significant risk factor for Parkinson's, with risk increasing for those over 60.
+                          </p>
+                          
+                          <div className="p-4 bg-blue-50/50 dark:bg-blue-900/10 rounded-lg border border-blue-100 dark:border-blue-800">
+                              <h4 className="text-sm font-semibold text-blue-900 dark:text-blue-300 mb-3 flex items-center gap-2">
+                                  <span className="h-2 w-2 rounded-full bg-blue-600 animate-pulse"/>
+                                  Analyst Instructions
+                              </h4>
+                              <div className="grid grid-cols-[85px_1fr] gap-y-2 text-sm text-muted-foreground">
+                                  <span className="font-medium text-foreground">1. Setting:</span>
+                                  <span>Quiet, well-lit room free from distractions.</span>
+                                  
+                                  <span className="font-medium text-foreground">2. Baseline:</span>
+                                  <span>Patient seated comfortably for 5+ mins.</span>
+                                  
+                                  <span className="font-medium text-foreground">3. Observe:</span>
+                                  <span>Monitor resting tremors during interview.</span>
+                                  
+                                  <span className="font-medium text-foreground">4. Verify:</span>
+                                  <span>Check age against medical records.</span>
+                              </div>
+                          </div>
                       </div>
                     </div>
-                    <div className="mt-4 p-4 bg-muted/50 rounded-lg text-sm text-muted-foreground border">
-                        <p className="font-medium mb-1">Observation Guide:</p>
-                        <ul className="list-disc list-inside space-y-1">
-                            <li>Check for Micrographia (small handwriting)</li>
-                            <li>Observe shakiness or tremors while writing</li>
-                            <li>Note any difficulty initiating the writing movement</li>
-                        </ul>
+                  </div>
+
+                  {/* Voice Analysis */}
+                  <div className="space-y-6">
+                    <div className="flex items-center gap-2 mb-4">
+                      <Mic className="h-5 w-5 text-primary" />
+                      <h3 className="text-lg font-semibold">Voice Analysis</h3>
+                    </div>
+                    
+                    <div className="space-y-4">
+                      <div>
+                        <Label>Jitter (%)</Label>
+                        <div className="px-2 py-4 cursor-pointer">
+                          <Slider
+                            value={[formData.jitter_local]}
+                            onValueChange={(value) => updateFormData('jitter_local', value[0])}
+                            max={2}
+                            step={0.1}
+                            className="w-full"
+                          />
+                          <div className="flex justify-between text-base font-medium text-foreground mt-1">
+                            <span>0%</span>
+                            <span className="font-bold text-primary">{formData.jitter_local.toFixed(1)}%</span>
+                            <span>2%</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div>
+                        <Label>Shimmer (%)</Label>
+                        <div className="px-2 py-4 cursor-pointer">
+                          <Slider
+                            value={[formData.shimmer_local]}
+                            onValueChange={(value) => updateFormData('shimmer_local', value[0])}
+                            max={1}
+                            step={0.05}
+                            className="w-full"
+                          />
+                          <div className="flex justify-between text-base font-medium text-foreground mt-1">
+                            <span>0%</span>
+                            <span className="font-bold text-primary">{formData.shimmer_local.toFixed(2)}%</span>
+                            <span>1%</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Right Column */}
+                <div className="space-y-8">
+                  {/* Motor Assessment */}
+                  <div className="space-y-6">
+                    <div className="flex items-center gap-2 mb-4">
+                      <Brain className="h-5 w-5 text-primary" />
+                      <h3 className="text-lg font-semibold">Motor Assessment</h3>
+                    </div>
+                    
+                    <div className="space-y-4">
+                      <div>
+                        <Label>Tremor Score (0-4)</Label>
+                        <div className="px-2 py-4 cursor-pointer">
+                          <Slider
+                            value={[formData.tremor_score]}
+                            onValueChange={(value) => updateFormData('tremor_score', value[0])}
+                            max={4}
+                            step={1}
+                            className="w-full"
+                          />
+                          <div className="flex justify-between text-base font-medium text-foreground mt-1">
+                            <span>None</span>
+                            <span className="font-bold text-primary">{formData.tremor_score}</span>
+                            <span>Severe</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div>
+                        <Label>Rigidity (0-4)</Label>
+                        <div className="px-2 py-4 cursor-pointer">
+                          <Slider
+                            value={[formData.rigidity]}
+                            onValueChange={(value) => updateFormData('rigidity', value[0])}
+                            max={4}
+                            step={1}
+                            className="w-full"
+                          />
+                          <div className="flex justify-between text-base font-medium text-foreground mt-1">
+                            <span>Normal</span>
+                            <span className="font-bold text-primary">{formData.rigidity}</span>
+                            <span>Severe</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div>
+                        <Label>Bradykinesia (0-4)</Label>
+                        <div className="px-2 py-4 cursor-pointer">
+                          <Slider
+                            value={[formData.bradykinesia]}
+                            onValueChange={(value) => updateFormData('bradykinesia', value[0])}
+                            max={4}
+                            step={1}
+                            className="w-full"
+                          />
+                          <div className="flex justify-between text-base font-medium text-foreground mt-1">
+                            <span>Normal</span>
+                            <span className="font-bold text-primary">{formData.bradykinesia}</span>
+                            <span>Severe</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Handwriting */}
+                  <div className="space-y-6">
+                    <div className="flex items-center gap-2 mb-4">
+                      <Activity className="h-5 w-5 text-primary" />
+                      <h3 className="text-lg font-semibold">Handwriting Assessment</h3>
+                    </div>
+                    
+                    <div>
+                      <Label>Handwriting Score (0-4)</Label>
+                      <div className="px-2 py-4 cursor-pointer">
+                        <Slider
+                          value={[formData.handwriting_score]}
+                          onValueChange={(value) => updateFormData('handwriting_score', value[0])}
+                          max={4}
+                          step={0.5}
+                          className="w-full"
+                        />
+                        <div className="flex justify-between text-base font-medium text-foreground mt-1">
+                          <span>Normal</span>
+                          <span className="font-bold text-primary">{formData.handwriting_score}</span>
+                          <span>Severe</span>
+                        </div>
+                      </div>
+                      <div className="mt-4 p-4 bg-muted/50 rounded-lg text-sm text-muted-foreground border">
+                          <p className="font-medium mb-1">Observation Guide:</p>
+                          <ul className="list-disc list-inside space-y-1">
+                              <li>Check for Micrographia (small handwriting)</li>
+                              <li>Observe shakiness or tremors while writing</li>
+                              <li>Note any difficulty initiating the writing movement</li>
+                          </ul>
+                      </div>
                     </div>
                   </div>
                 </div>

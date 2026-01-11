@@ -31,9 +31,9 @@ const Footer = () => {
           <div>
             <h3 className="font-semibold mb-4 text-foreground">Resources</h3>
             <ul className="space-y-2 text-sm text-muted-foreground">
-              <li><a href="#" className="hover:text-primary transition-colors">Documentation</a></li>
-              <li><a href="#" className="hover:text-primary transition-colors">Research Paper</a></li>
-              <li><a href="#" className="hover:text-primary transition-colors">API Reference</a></li>
+              <li><a href="https://drive.google.com/file/d/1kAagGYaKb30xX81rj7gTgyBzntv8sq9X/view?usp=drive_link" className="hover:text-primary transition-colors" target="_blank">Documentation</a></li>
+              <li><a href="https://drive.google.com/drive/folders/142Q90U_z82wPx0ltZKQdMGdZQiXCf8xC?usp=sharing" className="hover:text-primary transition-colors" target="_blank">Research Papers</a></li>
+              <li><a href="https://www.geeksforgeeks.org/machine-learning/parkinson-disease-prediction-using-machine-learning-python" className="hover:text-primary transition-colors" target="_blank">API Reference</a></li>
             </ul>
           </div>
 

@@ -2,10 +2,14 @@ import React, { useState, useCallback, useRef } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
-import { Upload, X, FileText, AlertCircle, CheckCircle, Loader2, FileSpreadsheet } from 'lucide-react';
+import { Upload, X, FileText, AlertCircle, CheckCircle, Loader2, FileSpreadsheet, Activity } from 'lucide-react';
 import Papa from 'papaparse';
 import { api, BatchPredictionResponse } from '@/lib/api';
 import { Download, CheckCircle2, XCircle, AlertTriangle } from 'lucide-react';
+import { 
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, 
+  PieChart, Pie, Cell, Legend, ScatterChart, Scatter, AreaChart, Area
+} from 'recharts';
 
 interface CsvData {
   fileName: string;
@@ -102,18 +106,14 @@ const CsvUpload = () => {
           };
           reader.readAsText(file);
       } else {
-          // Excel or Doc - No preview, just state file is ready
-          // For visualization purposes, we might set a dummy "csvData" or just handle it differently.
-          // To keep UI simple, we'll confirm selection but not show detailed tabular preview for these complex binaries on client side.
           setCsvData({ data: [], headers: [], fileName: file.name }); 
           setIsUploading(false);
           toast({ title: "File Selected", description: `${file.name} ready for processing.` });
       }
     };
   
-    // ... existing processBatch ...
     const processBatch = async () => {
-      if (!selectedFile) return; // Removed !csvData check since binary files might be empty in client preview
+      if (!selectedFile) return;
   
       setIsProcessing(true);
       
@@ -344,35 +344,243 @@ const CsvUpload = () => {
           )}
 
           {batchResults && (
-            <Card className="shadow-elevated animate-in fade-in slide-in-from-bottom-5">
-              <CardHeader className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/10 dark:to-indigo-900/10">
-                <CardTitle className="flex items-center gap-2 text-primary">
+            <Card className="shadow-elevated animate-in fade-in slide-in-from-bottom-5 border-t-4 border-t-primary">
+              <CardHeader className="pb-8">
+                <CardTitle className="flex items-center gap-2 text-2xl text-primary">
                   <CheckCircle2 className="h-6 w-6" />
                   Processing Complete
                 </CardTitle>
-                <CardDescription>
-                   Batch analysis summary for {batchResults.total_records} records.
+                <CardDescription className="text-base">
+                   Analyzed {batchResults.total_records} patient records. Below is the population distribution and risk analysis.
                 </CardDescription>
               </CardHeader>
               <CardContent className="p-8">
-                  <div className="grid md:grid-cols-3 gap-6 mb-8">
-                     <div className="bg-background border rounded-xl p-6 text-center shadow-sm">
+                  
+                  {/* Summary Cards */}
+                  <div className="grid md:grid-cols-3 gap-6 mb-10">
+                     <div className="bg-background border rounded-xl p-6 text-center shadow-sm relative overflow-hidden">
+                        <div className="absolute top-0 right-0 p-2 opacity-10">
+                           <FileSpreadsheet className="w-24 h-24" />
+                        </div>
                         <p className="text-muted-foreground font-medium mb-1">Total Records</p>
-                        <p className="text-3xl font-bold">{batchResults.total_records}</p>
+                        <p className="text-4xl font-bold">{batchResults.total_records}</p>
                      </div>
                      <div className="bg-green-50 border border-green-200 rounded-xl p-6 text-center shadow-sm dark:bg-green-900/10 dark:border-green-900/30">
-                        <p className="text-green-700 font-medium mb-1 dark:text-green-500">Successful</p>
-                        <p className="text-3xl font-bold text-green-700 dark:text-green-500">{batchResults.successful_predictions}</p>
+                        <p className="text-green-700 font-medium mb-1 dark:text-green-500">Successful Predictions</p>
+                        <p className="text-4xl font-bold text-green-700 dark:text-green-500">{batchResults.successful_predictions}</p>
                      </div>
                      <div className="bg-red-50 border border-red-200 rounded-xl p-6 text-center shadow-sm dark:bg-red-900/10 dark:border-red-900/30">
-                        <p className="text-red-700 font-medium mb-1 dark:text-red-500">Failed</p>
-                        <p className="text-3xl font-bold text-red-700 dark:text-red-500">{batchResults.failed_predictions}</p>
+                        <p className="text-red-700 font-medium mb-1 dark:text-red-500">Failed Records</p>
+                        <p className="text-4xl font-bold text-red-700 dark:text-red-500">{batchResults.failed_predictions}</p>
                      </div>
                   </div>
 
+                  {/* Charts Section */}
+                  <div className="grid lg:grid-cols-2 gap-8 mb-8">
+                      {/* 1. Risk Distribution - Smooth Area Chart */}
+                      <Card className="shadow-lg border-muted overflow-hidden relative group">
+                          <div className="absolute inset-0 bg-gradient-to-br from-transparent to-primary/5 opacity-0 group-hover:opacity-100 transition-opacity" />
+                          <CardHeader>
+                              <CardTitle className="text-lg flex items-center gap-2">
+                                  <Activity className="h-4 w-4 text-primary" />
+                                  Risk Distribution
+                              </CardTitle>
+                              <CardDescription>Population breakdown by risk probability</CardDescription>
+                          </CardHeader>
+                          <CardContent className="h-[350px]">
+                              <ResponsiveContainer width="100%" height="100%">
+                                  <AreaChart
+                                      data={[
+                                        { name: 'Low Risk', value: batchResults.predictions.filter((p: any) => p.pd_probability <= 0.3).length, fill: '#10b981' },
+                                        { name: 'Moderate', value: batchResults.predictions.filter((p: any) => p.pd_probability > 0.3 && p.pd_probability <= 0.7).length, fill: '#f59e0b' },
+                                        { name: 'High Risk', value: batchResults.predictions.filter((p: any) => p.pd_probability > 0.7).length, fill: '#ef4444' },
+                                      ]}
+                                      margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
+                                  >
+                                      <defs>
+                                          <linearGradient id="colorRisk" x1="0" y1="0" x2="0" y2="1">
+                                              <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.8}/>
+                                              <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0}/>
+                                          </linearGradient>
+                                      </defs>
+                                      <CartesianGrid strokeDasharray="3 3" vertical={false} strokeOpacity={0.1} />
+                                      <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 13, fontWeight: 500 }} dy={10} />
+                                      <YAxis axisLine={false} tickLine={false} tick={{ fill: 'muted' }} />
+                                      <Tooltip 
+                                        cursor={{ stroke: 'hsl(var(--primary))', strokeWidth: 2 }}
+                                        contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 30px -10px rgba(0,0,0,0.2)', backgroundColor: 'hsl(var(--popover))', color: 'hsl(var(--popover-foreground))' }}
+                                      />
+                                      <Area 
+                                        type="monotone" 
+                                        dataKey="value" 
+                                        stroke="hsl(var(--primary))" 
+                                        strokeWidth={3}
+                                        fillOpacity={1} 
+                                        fill="url(#colorRisk)" 
+                                      />
+                                  </AreaChart>
+                              </ResponsiveContainer>
+                          </CardContent>
+                      </Card>
+
+                       {/* 2. Success Rate Donut - Thin & Elegant */}
+                       <Card className="shadow-lg border-muted overflow-hidden relative group">
+                           <div className="absolute inset-0 bg-gradient-to-bl from-transparent to-primary/5 opacity-0 group-hover:opacity-100 transition-opacity" />
+                           <CardHeader>
+                               <CardTitle className="text-lg flex items-center gap-2">
+                                   <CheckCircle2 className="h-4 w-4 text-green-500" />
+                                   Processing Status
+                               </CardTitle>
+                               <CardDescription>Success vs Failure Rate</CardDescription>
+                           </CardHeader>
+                           <CardContent className="h-[350px] relative">
+                               <ResponsiveContainer width="100%" height="100%">
+                                   <PieChart>
+                                       <Pie
+                                           data={[
+                                               { name: 'Success', value: batchResults.successful_predictions, fill: '#10b981' },
+                                               { name: 'Failed', value: batchResults.failed_predictions, fill: '#ef4444' },
+                                           ]}
+                                           cx="50%"
+                                           cy="50%"
+                                           innerRadius={80}
+                                           outerRadius={100}
+                                           paddingAngle={2}
+                                           dataKey="value"
+                                           cornerRadius={5}
+                                       >
+                                           <Cell key="cell-0" fill="#10b981" strokeWidth={0} />
+                                           <Cell key="cell-1" fill="#ef4444" strokeWidth={0} />
+                                       </Pie>
+                                       <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 30px -10px rgba(0,0,0,0.2)' }} />
+                                       <Legend verticalAlign="bottom" height={36} iconType="circle"/>
+                                   </PieChart>
+                               </ResponsiveContainer>
+                               {/* Center Text Overlay */}
+                               <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none pb-8">
+                                   <span className="text-4xl font-bold">{batchResults.total_records}</span>
+                                   <span className="text-xs text-muted-foreground uppercase tracking-widest">Total</span>
+                               </div>
+                           </CardContent>
+                       </Card>
+
+                       {/* 3. Age vs Risk Correlation - Modern Scatter */}
+                       {batchResults.predictions.some((p: any) => p.features && p.features.age) && (
+                           <Card className="shadow-lg border-muted lg:col-span-2 overflow-hidden relative group">
+                               <div className="absolute inset-0 bg-gradient-to-r from-transparent via-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
+                               <CardHeader>
+                                   <CardTitle className="text-lg flex items-center gap-2">
+                                       <Activity className="h-4 w-4 text-primary" />
+                                       Age vs. Risk Analysis
+                                   </CardTitle>
+                                   <CardDescription>Correlation between patient age and predicted probability</CardDescription>
+                               </CardHeader>
+                               <CardContent className="h-[400px]">
+                                    <ResponsiveContainer width="100%" height="100%">
+                                        <ScatterChart margin={{ top: 20, right: 20, bottom: 20, left: 20 }}>
+                                            <CartesianGrid strokeDasharray="3 3" strokeOpacity={0.1} />
+                                            <XAxis 
+                                                type="number" 
+                                                dataKey="age" 
+                                                name="Age" 
+                                                unit=" yrs" 
+                                                tickLine={false} 
+                                                axisLine={false} 
+                                                tick={{ fill: 'muted' }}
+                                                label={{ value: 'Patient Age', position: 'insideBottom', offset: -10, fill: 'muted' }} 
+                                            />
+                                            <YAxis 
+                                                type="number" 
+                                                dataKey="prob" 
+                                                name="Probability" 
+                                                unit="%" 
+                                                tickLine={false} 
+                                                axisLine={false} 
+                                                tick={{ fill: 'muted' }}
+                                                domain={[0, 100]} 
+                                            />
+                                            <Tooltip cursor={{ strokeDasharray: '3 3' }} contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 30px -10px rgba(0,0,0,0.2)' }} />
+                                            <Scatter name="Patients" data={batchResults.predictions.map((p: any) => ({ 
+                                                age: p.features?.age || 0, 
+                                                prob: (p.pd_probability * 100).toFixed(1) 
+                                            }))}>
+                                                {batchResults.predictions.map((entry: any, index: number) => (
+                                                    <Cell key={`cell-${index}`} fill={entry.pd_probability > 0.5 ? '#ef4444' : '#10b981'} fillOpacity={0.6} />
+                                                ))}
+                                            </Scatter>
+                                        </ScatterChart>
+                                    </ResponsiveContainer>
+                               </CardContent>
+                           </Card>
+                       )}
+
+                       {/* 4. Feature Breakdown & Demographics */}
+                       <div className="lg:col-span-2 grid md:grid-cols-2 gap-8">
+                            {/* Jitter Distribution */}
+                            <Card className="shadow-lg border-muted">
+                                <CardHeader>
+                                    <CardTitle className="text-lg">Voice Jitter Distribution</CardTitle>
+                                    <CardDescription>Spread of vocal instability across patients</CardDescription>
+                                </CardHeader>
+                                <CardContent className="h-[300px]">
+                                    <ResponsiveContainer width="100%" height="100%">
+                                        <BarChart
+                                            data={[0, 0.002, 0.004, 0.006, 0.008, 0.01].map((binStart, i) => {
+                                                const count = batchResults.predictions.filter((p: any) => {
+                                                    const val = p.features?.jitter_local || 0;
+                                                    return val >= binStart && val < binStart + 0.002;
+                                                }).length;
+                                                return { x: `< ${(binStart+0.002).toFixed(3)}`, y: count };
+                                            })}
+                                        >
+                                            <CartesianGrid strokeDasharray="3 3" vertical={false} strokeOpacity={0.1} />
+                                            <XAxis dataKey="x" fontSize={11} tickLine={false} axisLine={false} />
+                                            <Tooltip contentStyle={{ borderRadius: '8px' }} />
+                                            <Bar dataKey="y" fill="#8884d8" radius={[4, 4, 0, 0]} name="Patients">
+                                                {/* Gradient Fill similar to risk chart */}
+                                            </Bar>
+                                        </BarChart>
+                                    </ResponsiveContainer>
+                                </CardContent>
+                            </Card>
+
+                            {/* Age Demographics Donut */}
+                            <Card className="shadow-lg border-muted">
+                                <CardHeader>
+                                    <CardTitle className="text-lg">Age Demographics</CardTitle>
+                                    <CardDescription>Patient age segments</CardDescription>
+                                </CardHeader>
+                                <CardContent className="h-[300px]">
+                                    <ResponsiveContainer width="100%" height="100%">
+                                        <PieChart>
+                                            <Pie
+                                                data={[
+                                                    { name: '< 50', value: batchResults.predictions.filter((p: any) => (p.features?.age || 0) < 50).length, fill: '#60a5fa' },
+                                                    { name: '50-70', value: batchResults.predictions.filter((p: any) => (p.features?.age || 0) >= 50 && (p.features?.age || 0) <= 70).length, fill: '#8b5cf6' },
+                                                    { name: '> 70', value: batchResults.predictions.filter((p: any) => (p.features?.age || 0) > 70).length, fill: '#f59e0b' },
+                                                ].filter(d => d.value > 0)}
+                                                cx="50%" cy="50%"
+                                                innerRadius={60} outerRadius={80}
+                                                paddingAngle={5}
+                                                dataKey="value"
+                                            >
+                                                <Cell fill="#60a5fa" />
+                                                <Cell fill="#8b5cf6" />
+                                                <Cell fill="#f59e0b" />
+                                            </Pie>
+                                            <Tooltip contentStyle={{ borderRadius: '8px' }} />
+                                            <Legend verticalAlign="bottom" />
+                                        </PieChart>
+                                    </ResponsiveContainer>
+                                </CardContent>
+                            </Card>
+                       </div>
+
+                       </div>
+                       
                   <div className="flex justify-center">
                       <Button className="bg-gradient-hero shadow-lg gap-2" size="lg">
-                          <Download className="w-4 h-4" /> Download Report
+                          <Download className="w-4 h-4" /> Download Full Analysis Report
                       </Button>
                   </div>
               </CardContent>
