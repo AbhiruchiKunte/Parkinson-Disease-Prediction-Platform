@@ -16,7 +16,6 @@ def preprocess_batch_row(row):
     # Standard model features
     MODEL_FEATURES = ['age', 'tremor_score', 'handwriting_score', 'jitter_local', 'shimmer_local']
     
-    # This allows standard datasets (like UCI) to work with our hybrid model
     MAPPING = {
         'jitter_percent': 'jitter_local',
         'jitter(%)': 'jitter_local',
@@ -89,7 +88,6 @@ def extract_audio_features(file_path):
         # Load audio file
         y, sr = librosa.load(file_path, duration=3)
         
-        # Calculate features (Simplified approximation)
         # 1. Pitch (F0)
         f0, voiced_flag, voiced_probs = librosa.pyin(y, fmin=librosa.note_to_hz('C2'), fmax=librosa.note_to_hz('C7'))
         f0 = f0[~np.isnan(f0)]

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { Brain, Menu, X, Activity, Mic, BarChart, Home, FileText } from 'lucide-react';
+import { Brain, Menu, X, Activity, Layers, BarChart, Home, FileText, Settings } from 'lucide-react';
 
 const Navbar = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -26,7 +26,7 @@ const Navbar = () => {
 
   return (
     <nav className="fixed top-0 inset-x-0 z-50 h-20 transition-all duration-300 bg-background/95 backdrop-blur-md border-b border-border/10 shadow-sm supports-[backdrop-filter]:bg-background/60">
-      <div className="container mx-auto px-6 h-full flex items-center justify-between">
+      <div className="w-full max-w-[98%] mx-auto px-4 md:px-6 h-full flex items-center justify-between">
         {/* Logo */}
         <Link to="/" className="flex items-center space-x-3 group">
           <div className="relative flex items-center justify-center">
@@ -44,17 +44,18 @@ const Navbar = () => {
         </Link>
 
         {/* Desktop Navigation */}
-        <div className="hidden md:flex items-center gap-1 bg-secondary/30 p-1.5 rounded-full border border-border/50">
+        <div className="hidden xl:flex items-center gap-1 bg-secondary/30 p-1.5 rounded-full border border-border/50">
           <NavLink to="/" icon={Home}>Home</NavLink>
           <NavLink to="/dashboard" icon={Activity}>Dashboard</NavLink>
           <NavLink to="/prediction" icon={Brain}>Prediction</NavLink>
-          <NavLink to="/voice-analysis" icon={Mic}>Multimodal Analysis</NavLink>
+          <NavLink to="/voice-analysis" icon={Layers}>Multimodal Analysis</NavLink>
           <NavLink to="/analytics" icon={BarChart}>Analytics</NavLink>
           <NavLink to="/about" icon={FileText}>About</NavLink>
+          <NavLink to="/settings" icon={Settings}>Settings</NavLink>
         </div>
 
         {/* Action Button */}
-        <div className="hidden md:flex items-center space-x-4">
+        <div className="hidden xl:flex items-center space-x-4">
             <a href="https://www.who.int/news-room/fact-sheets/detail/parkinson-disease" target="_blank" rel="noopener noreferrer">
                 <Button className="bg-primary hover:bg-primary/90 text-primary-foreground shadow-md transition-all hover:shadow-lg rounded-full px-6">
                     Learn More
@@ -66,23 +67,24 @@ const Navbar = () => {
         <Button
           variant="ghost"
           size="icon"
-          className="md:hidden"
+          className="xl:hidden -mr-2"
           onClick={() => setIsMenuOpen(!isMenuOpen)}
         >
-          {isMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
+          {isMenuOpen ? <X className="h-8 w-8" /> : <Menu className="h-8 w-8" />}
         </Button>
       </div>
 
       {/* Mobile Menu */}
       {isMenuOpen && (
-        <div className="md:hidden absolute top-20 left-0 right-0 bg-background border-b border-border shadow-xl animate-in slide-in-from-top-5">
+        <div className="xl:hidden absolute top-20 left-0 right-0 bg-background border-b border-border shadow-xl animate-in slide-in-from-top-5">
             <div className="flex flex-col p-4 space-y-2">
                 <NavLink to="/" icon={Home}>Home</NavLink>
                 <NavLink to="/dashboard" icon={Activity}>Dashboard</NavLink>
                 <NavLink to="/prediction" icon={Brain}>Prediction</NavLink>
-                <NavLink to="/voice-analysis" icon={Mic}>Multimodal Analysis</NavLink>
+                <NavLink to="/voice-analysis" icon={Layers}>Multimodal Analysis</NavLink>
                 <NavLink to="/analytics" icon={BarChart}>Analytics</NavLink>
                 <NavLink to="/about" icon={FileText}>About</NavLink>
+                <NavLink to="/settings" icon={Settings}>Settings</NavLink>
                 <div className="pt-4 mt-2 border-t border-border">
                     <a href="https://www.who.int/news-room/fact-sheets/detail/parkinson-disease" target="_blank" rel="noopener noreferrer" className="block">
                         <Button className="w-full bg-primary rounded-full">Learn More</Button>

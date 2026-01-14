@@ -28,16 +28,16 @@ const HeroSection = () => {
           </h1>
           <p className="text-xl md:text-2xl mb-8 opacity-90 max-w-3xl mx-auto font-light">
             AI-powered analysis for early detection and stage classification of Parkinson's disease
-            using comprehensive biomarker assessment.
+            using biomarker assessment.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link to="/prediction">
-              <Button size="lg" variant="secondary" className="shadow-elevated text-lg h-14 px-8 font-semibold">
+            <Link to="/prediction" className="w-full sm:w-auto">
+              <Button size="lg" variant="secondary" className="w-full sm:w-auto min-w-[200px] shadow-elevated text-lg h-14 px-8 font-semibold">
                 Start Assessment
               </Button>
             </Link>
-            <Link to="/about">
-              <Button size="lg" variant="outline" className="bg-transparent text-white border-white hover:bg-white/10 shadow-elevated text-lg h-14 px-8">
+            <Link to="/about" className="w-full sm:w-auto">
+              <Button size="lg" variant="outline" className="w-full sm:w-auto min-w-[200px] bg-transparent text-white border-white hover:bg-white/10 shadow-elevated text-lg h-14 px-8">
                 Learn Methodology
               </Button>
             </Link>

@@ -13,7 +13,7 @@ const Index = () => {
       <section className="py-24 bg-background relative overflow-hidden">
         <div className="absolute inset-0 bg-primary/5 -skew-y-3 transform origin-top-left scale-110"></div>
         <div className="container mx-auto px-6 relative z-10">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
+          <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-8 text-center">
             <div className="group p-8 bg-card/50 backdrop-blur-sm rounded-2xl shadow-sm border hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
               <div className="text-5xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary to-blue-600 mb-2">98.5%</div>
               <div className="text-sm font-semibold tracking-wide uppercase text-muted-foreground">Detection Accuracy</div>
@@ -194,20 +194,20 @@ const Index = () => {
       {/* Call to Action */}
       <section className="py-20 bg-background border-t border-border">
         <div className="container mx-auto px-6">
-          <div className="bg-gradient-hero rounded-3xl p-10 md:p-16 text-center text-white relative overflow-hidden shadow-2xl">
+          <div className="bg-gradient-hero rounded-3xl p-6 md:p-16 text-center text-white relative overflow-hidden shadow-2xl">
               <div className="relative z-10 max-w-3xl mx-auto">
                 <h2 className="text-3xl md:text-5xl font-bold mb-6">Ready to check your health?</h2>
                 <p className="text-xl opacity-90 mb-8">
                   Get an instant assessment using our advanced machine learning models. Safe, secure, and private.
                 </p>
                 <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
-                    <Link to="/dashboard">
-                        <Button size="lg" variant="outline" className="h-14 px-8 text-lg bg-white/10 text-white border-white hover:bg-white/20">
+                    <Link to="/dashboard" className="w-full sm:w-auto">
+                        <Button size="lg" variant="outline" className="w-full sm:w-auto min-w-[200px] h-14 px-4 md:px-8 text-base md:text-lg bg-white/10 text-white border-white hover:bg-white/20">
                             Get Started
                         </Button>
                     </Link>
-                    <Link to="/prediction">
-                      <Button size="lg" variant="secondary" className="shadow-lg h-14 px-8 text-lg">
+                    <Link to="/prediction" className="w-full sm:w-auto">
+                      <Button size="lg" variant="secondary" className="w-full sm:w-auto min-w-[200px] shadow-lg h-14 px-4 md:px-8 text-base md:text-lg">
                         Start Assessment Now <ArrowRight className="ml-2 h-5 w-5" />
                       </Button>
                     </Link>

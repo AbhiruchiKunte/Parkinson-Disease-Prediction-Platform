@@ -17,7 +17,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 class ModelHandler:
-    def __init__(self, model_path='model/'):
+    def __init__(self, model_path='ml_models/'):
         # Resolve model_path relative to this file when a relative path is provided
         mp = Path(model_path)
         if not mp.is_absolute():
@@ -34,10 +34,9 @@ class ModelHandler:
         ]
         self.load_models()
     
-    def _load_component(self, name, joblib_name, pkl_name):
+    def _load_component(self, name, joblib_name, pkl_name=None):
         """Helper to load a component trying joblib first then pickle"""
         joblib_path = self.model_path / joblib_name
-        pkl_path = self.model_path / pkl_name
         
         if joblib_path.exists():
             try:
@@ -47,14 +46,16 @@ class ModelHandler:
             except Exception as e:
                 logger.error(f"Error loading {name} from {joblib_name}: {e}")
                 
-        if pkl_path.exists():
-            try:
-                with open(pkl_path, 'rb') as f:
-                    component = pickle.load(f)
-                logger.info(f"{name} loaded successfully from {pkl_name}")
-                return component
-            except Exception as e:
-                logger.error(f"Error loading {name} from {pkl_name}: {e}")
+        if pkl_name:
+            pkl_path = self.model_path / pkl_name
+            if pkl_path.exists():
+                try:
+                    with open(pkl_path, 'rb') as f:
+                        component = pickle.load(f)
+                    logger.info(f"{name} loaded successfully from {pkl_name}")
+                    return component
+                except Exception as e:
+                    logger.error(f"Error loading {name} from {pkl_name}: {e}")
         
         return None
 
@@ -64,29 +65,25 @@ class ModelHandler:
             # Load scaler
             self.scaler = self._load_component(
                 "Scaler", 
-                'parkinson_scaler.joblib', 
-                'parkinson_scaler.pkl'
+                'parkinson_scaler.joblib' 
             )
             
             # Load PCA
             self.pca = self._load_component(
                 "PCA", 
-                'parkinson_pca.joblib', 
-                'parkinson_pca.pkl'
+                'parkinson_pca.joblib' 
             )
             
             # Load classifier (Random Forest)
             self.classifier = self._load_component(
                 "RF Classifier", 
-                'parkinson_rf_model.joblib', 
-                'parkinson_rf_model.pkl'
+                'parkinson_rf_model.joblib'
             )
             
             # Load SVM classifier
             self.svm_classifier = self._load_component(
                 "SVM Classifier", 
-                'parkinson_svm_model.joblib', 
-                'parkinson_svm_model.pkl'
+                'parkinson_svm_model.joblib'
             )
             
             if self.classifier is None:
@@ -97,7 +94,6 @@ class ModelHandler:
                 
         except Exception as e:
             logger.error(f"Error loading models: {str(e)}")
-            # Don't raise here to allow script to run even if models aren't present yet
             
     def is_model_loaded(self):
         """Check if models are properly loaded"""
@@ -160,21 +156,15 @@ class ModelHandler:
                 if hasattr(self.svm_classifier, "predict_proba"):
                     pd_prob_svm = self.svm_classifier.predict_proba(X)[0][1]
                 else:
-                    # Fallback for SVMs without probability output (e.g. standard SVC without probability=True)
                     # Use decision function and sigmoid or just basic prediction
                     pred = self.svm_classifier.predict(X)[0]
                     pd_prob_svm = 1.0 if pred == 1 else 0.0
             except Exception as e:
                 logger.error(f"SVM prediction error: {e}")
         
-        # Use RF probability as the main one for backward compatibility, 
-        # but you might want to average them or strictly return both.
-        # Here we return both explicit keys.
-        
         # Calculate feature importance (simplified)
         feature_importance = self.calculate_feature_importance(features_dict)
         
-        # Simulate stage probabilities based on RF probability (or average)
         # Using RF probability for stage calculation for consistency
         stage_probs = self.calculate_stage_probabilities(pd_prob_rf)
         
@@ -188,7 +178,6 @@ class ModelHandler:
     
     def calculate_feature_importance(self, features_dict):
         """Calculate feature importance for explanation"""
-        # In a real scenario, we might use SHAP or similar techniques
         importance_scores = {}
         
         # Example scoring logic (customize based on your domain knowledge)
@@ -250,10 +239,7 @@ class ModelTrainer:
         
     def train_model(self, X_train, y_train):
         """Train the complete pipeline"""
-        # Fit scaler
         X_scaled = self.scaler.fit_transform(X_train)
-        
-        # Fit PCA
         X_pca = self.pca.fit_transform(X_scaled)
         
         # Train classifier

@@ -36,7 +36,7 @@ const Dashboard = () => {
 
   return (
     <div className="container mx-auto px-6 py-8">
-      <div className="flex justify-between items-center mb-8">
+      <div className="flex flex-col md:flex-row justify-between md:items-center gap-4 mb-8">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">System Dashboard</h1>
           <p className="text-muted-foreground mt-1">Overview of prediction models and recent activity.</p>

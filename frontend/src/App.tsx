@@ -10,6 +10,7 @@ import Prediction from "./pages/Prediction";
 import VoiceAnalysis from "./pages/VoiceAnalysis";
 import Analytics from "./pages/Analytics";
 import About from "./pages/About";
+import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -28,6 +29,7 @@ const App = () => (
             <Route path="/voice-analysis" element={<VoiceAnalysis />} />
             <Route path="/analytics" element={<Analytics />} />
             <Route path="/about" element={<About />} />
+            <Route path="/settings" element={<Settings />} />
             <Route path="*" element={<NotFound />} />
           </Route>
         </Routes>
