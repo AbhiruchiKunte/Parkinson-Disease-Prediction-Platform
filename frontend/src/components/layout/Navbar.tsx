@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { Brain, Menu, X, Activity, Mic, BarChart, Home, FileText } from 'lucide-react';
+import { Brain, Menu, X, Activity, Layers, BarChart, Home, FileText } from 'lucide-react';
 
 const Navbar = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -48,7 +48,7 @@ const Navbar = () => {
           <NavLink to="/" icon={Home}>Home</NavLink>
           <NavLink to="/dashboard" icon={Activity}>Dashboard</NavLink>
           <NavLink to="/prediction" icon={Brain}>Prediction</NavLink>
-          <NavLink to="/voice-analysis" icon={Mic}>Multimodal Analysis</NavLink>
+          <NavLink to="/voice-analysis" icon={Layers}>Multimodal Analysis</NavLink>
           <NavLink to="/analytics" icon={BarChart}>Analytics</NavLink>
           <NavLink to="/about" icon={FileText}>About</NavLink>
         </div>
@@ -80,7 +80,7 @@ const Navbar = () => {
                 <NavLink to="/" icon={Home}>Home</NavLink>
                 <NavLink to="/dashboard" icon={Activity}>Dashboard</NavLink>
                 <NavLink to="/prediction" icon={Brain}>Prediction</NavLink>
-                <NavLink to="/voice-analysis" icon={Mic}>Multimodal Analysis</NavLink>
+                <NavLink to="/voice-analysis" icon={Layers}>Multimodal Analysis</NavLink>
                 <NavLink to="/analytics" icon={BarChart}>Analytics</NavLink>
                 <NavLink to="/about" icon={FileText}>About</NavLink>
                 <div className="pt-4 mt-2 border-t border-border">

@@ -8,14 +8,14 @@ import {
   BrainCircuit, 
   Download, 
   Info, 
-  Mic, 
+  Layers, 
   Share2, 
   TrendingUp, 
   Zap 
 } from 'lucide-react';
 import {
   ScatterChart, Scatter, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell,
-  BarChart, Bar, ReferenceLine,
+  BarChart, Bar, ReferenceLine, LineChart, Line,
   RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar,
   AreaChart, Area,
   RadialBarChart, RadialBar, Legend
@@ -26,14 +26,38 @@ const VisualizationPanel = () => {
 
   // --- MOCK DATA ---
   
-  // 1. PCA Data
-  const pcaPoints = [
-    { x: 0.1, y: 0.3, type: 'Parkinson\'s' }, { x: 0.15, y: 0.45, type: 'Parkinson\'s' },
-    { x: 0.22, y: 0.38, type: 'Parkinson\'s' }, { x: 0.35, y: 0.52, type: 'Parkinson\'s' },
-    { x: -0.45, y: -0.32, type: 'Healthy' }, { x: -0.38, y: -0.28, type: 'Healthy' },
-    { x: -0.41, y: -0.35, type: 'Healthy' }, { x: -0.33, y: -0.31, type: 'Healthy' },
-    { x: 0.45, y: 0.62, type: 'Current Patient' }, // The outlier/target
+  // 1. PCA Data (High Density 
+  const generateGaussianData = (count: number, centerX: number, centerY: number, varianceX: number, varianceY: number, type: string) => {
+    return Array.from({ length: count }, (_, i) => {
+        // Box-Muller transform for normal distribution
+        const u = 1 - Math.random();
+        const v = Math.random();
+        const z = Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);
+        
+        // Second dimension
+        const u2 = 1 - Math.random();
+        const v2 = Math.random();
+        const z2 = Math.sqrt(-2.0 * Math.log(u2)) * Math.cos(2.0 * Math.PI * v2);
+
+        return {
+            x: centerX + (z * varianceX),
+            y: centerY + (z2 * varianceY),
+            z: Math.random(), // unused
+            type
+        };
+    });
+  };
+
+  const pcaPoints3D = [
+      // Yellow stars (Early PD) - Wide spread, roughly X: [0, 10], Y: [-2, 4]
+      ...generateGaussianData(500, 6, 1, 3.5, 1.5, 'Parkinson\'s'),
+      
+      // Green circles (Healthy) - Tighter cluster, roughly X: [-2, 2], Y: [0, 2]
+      ...generateGaussianData(300, 0, 1.5, 1.2, 0.8, 'Healthy'),
   ];
+  
+  // Legacy points for compatibility if needed (can be removed or kept)
+  const pcaPoints = pcaPoints3D; 
 
   // 2. Feature Importance Data
   const featureData = [
@@ -61,12 +85,118 @@ const VisualizationPanel = () => {
     pv: Math.abs(Math.sin(i * 0.25) * 40 + Math.random() * 15),
   }));
 
-  // 5. Gauge Data (Radial Bar)
+  // 5. Multi-Waveform Series Data (Accelerometer)
+  const waveformSeries = Array.from({ length: 60 }, (_, i) => ({
+      name: i,
+      fp: Math.sin(i * 0.3) * 30 + 50 + Math.random() * 10,  // False Positive (Pink/Purple)
+      tp: Math.sin(i * 0.5) * 20 + 20 + Math.random() * 15, // True Positive (Red)
+      tn: 10 + Math.random() * 5,                           // True Negative (Green - Flat)
+      fn: Math.sin(i * 0.1) * 5 + 5 + Math.random() * 2,    // False Negative (Cyan - Low)
+  }));
+
+  // 6. Tremor Box Plot Data
+  const tremorBoxData = [
+      { name: 'rel 3', no_tremor: 20, small_tremor: 30, high_tremor: 45 },
+      { name: 'rel 4', no_tremor: 15, small_tremor: 12, high_tremor: 8 },
+      { name: 'rel 5', no_tremor: 10, small_tremor: 8, high_tremor: 5 },
+  ];
+
+  // 7. Gauge Data (Radial Bar)
   const gaugeData = [
     { name: 'Low Risk', value: 100, fill: '#22c55e' },
     { name: 'Medium Risk', value: 100, fill: '#eab308' },
-    { name: 'High Risk', value: 85, fill: '#ef4444' }, // 85% filled
+    { name: 'High Risk', value: 85, fill: '#ef4444' }, 
   ];
+
+  // 8. Symptom Profile 3D Scatter Data (Red vs Green)
+  const project3D = (x: number, y: number, z: number) => {
+    const angle = Math.PI / 6; // 30 degrees
+    const scale = 3; 
+    const u = (x - y) * Math.cos(angle) * scale;
+    const v = ((x + y) * Math.sin(angle) - z) * scale;
+    return { x: u, y: v, realX: x, realY: y, realZ: z };
+  };
+
+  const generateSymptomData = (count: number, centerX: number, centerY: number, centerZ: number, spread: number, type: string) => {
+      return Array.from({ length: count }, (_, i) => {
+          const rawX = centerX + (Math.random() - 0.5) * spread;
+          const rawY = centerY + (Math.random() - 0.5) * spread;
+          const rawZ = centerZ + (Math.random() - 0.5) * spread; // Z is vertical height
+          const proj = project3D(rawX, rawY, rawZ);
+          return {
+              ...proj,
+              type
+          };
+      });
+  };
+
+  const symptom3DData = [
+      ...generateSymptomData(150, 15, 15, 15, 10, 'Healthy Control'),
+      ...generateSymptomData(300, 30, 30, 45, 25, 'PD patient'),
+  ];
+
+  // Custom 3D Background Grid Component
+  const ThreeDGrid = () => {
+    const size = 50;
+    const step = 10;
+    const lines = [];
+
+    // Floor lines (z=0)
+    for (let i = 0; i <= size; i += step) {
+        // x-parallel
+        const start = project3D(0, i, 0);
+        const end = project3D(size, i, 0);
+        lines.push(<line key={`f-x-${i}`} x1={start.x} y1={start.y} x2={end.x} y2={end.y} stroke="#e5e7eb" strokeWidth="1" />);
+        // y-parallel
+        const startY = project3D(i, 0, 0);
+        const endY = project3D(i, size, 0);
+        lines.push(<line key={`f-y-${i}`} x1={startY.x} y1={startY.y} x2={endY.x} y2={endY.y} stroke="#e5e7eb" strokeWidth="1" />);
+    }
+
+    // Back Left Wall (x=0)
+    for (let i = 0; i <= size; i += step) {
+        // z-parallel (vertical)
+        const start = project3D(0, i, 0);
+        const end = project3D(0, i, size);
+        lines.push(<line key={`l-z-${i}`} x1={start.x} y1={start.y} x2={end.x} y2={end.y} stroke="#e5e7eb" strokeWidth="1" />);
+        // y-parallel (horizontal-ish)
+        const startY = project3D(0, 0, i);
+        const endY = project3D(0, size, i);
+        lines.push(<line key={`l-y-${i}`} x1={startY.x} y1={startY.y} x2={endY.x} y2={endY.y} stroke="#e5e7eb" strokeWidth="1" />);
+    }
+    
+     // Back Right Wall (y=0)
+    for (let i = 0; i <= size; i += step) {
+         // z-parallel (vertical)
+        const start = project3D(i, 0, 0);
+        const end = project3D(i, 0, size);
+        lines.push(<line key={`r-z-${i}`} x1={start.x} y1={start.y} x2={end.x} y2={end.y} stroke="#e5e7eb" strokeWidth="1" />);
+        // x-parallel
+        const startX = project3D(0, 0, i);
+        const endX = project3D(size, 0, i);
+        lines.push(<line key={`r-x-${i}`} x1={startX.x} y1={startX.y} x2={endX.x} y2={endX.y} stroke="#e5e7eb" strokeWidth="1" />);
+    }
+
+    // Axes Labels (approximated positions)
+    const zTop = project3D(0, 0, 55);
+    const xEnd = project3D(55, 0, 0);
+    const yEnd = project3D(0, 55, 0);
+
+    return (
+        <svg style={{ position: 'absolute', top: '50.3%', left: '50%', transform: 'translate(-50%, -50%)', width: '100%', height: '100%', pointerEvents: 'none', zIndex: 0 }} viewBox="-150 -180 300 360">
+            {lines}
+            {/* Axes Lines (darker) */}
+            <line x1={project3D(0,0,0).x} y1={project3D(0,0,0).y} x2={project3D(50,0,0).x} y2={project3D(50,0,0).y} stroke="#9ca3af" strokeWidth="2" />
+            <line x1={project3D(0,0,0).x} y1={project3D(0,0,0).y} x2={project3D(0,50,0).x} y2={project3D(0,50,0).y} stroke="#9ca3af" strokeWidth="2" />
+            <line x1={project3D(0,0,0).x} y1={project3D(0,0,0).y} x2={project3D(0,0,50).x} y2={project3D(0,0,50).y} stroke="#9ca3af" strokeWidth="2" />
+            
+            {/* Labels */}
+            <text x={zTop.x} y={zTop.y} textAnchor="middle" fill="#6b7280" fontSize="10">Sleep disorder</text>
+            <text x={xEnd.x} y={xEnd.y} textAnchor="start" fill="#6b7280" fontSize="10">Cognitive</text>
+            <text x={yEnd.x} y={yEnd.y} textAnchor="end" fill="#6b7280" fontSize="10">Movement</text>
+        </svg>
+    );
+  };
 
   // --- CUSTOM TOOLTIPS ---
 
@@ -76,9 +206,10 @@ const VisualizationPanel = () => {
       return (
         <div className="glass-panel p-3 rounded-lg border border-white/10 text-xs shadow-xl backdrop-blur-md bg-black/80">
           <p className="font-bold text-white mb-1">{data.type}</p>
-          <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-gray-300">
-            <span>PC1:</span> <span className="text-right font-mono">{data.x}</span>
-            <span>PC2:</span> <span className="text-right font-mono">{data.y}</span>
+           <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-gray-300">
+            <span>Cog:</span> <span className="text-right font-mono">{data.realX ? data.realX.toFixed(1) : data.x.toFixed(1)}</span>
+            <span>Mov:</span> <span className="text-right font-mono">{data.realY ? data.realY.toFixed(1) : data.y.toFixed(1)}</span>
+            {data.realZ && <><span>Sleep:</span> <span className="text-right font-mono">{data.realZ.toFixed(1)}</span></>}
           </div>
         </div>
       );
@@ -130,7 +261,7 @@ const VisualizationPanel = () => {
                 <BrainCircuit className="w-4 h-4 mr-2" /> Overview
               </TabsTrigger>
               <TabsTrigger value="voice" className="rounded-xl py-2.5 data-[state=active]:bg-background data-[state=active]:shadow-lg transition-all duration-300">
-                <Mic className="w-4 h-4 mr-2" /> Voice Analysis
+                <Layers className="w-4 h-4 mr-2" /> Multimodal Analysis
               </TabsTrigger>
               <TabsTrigger value="clustering" className="rounded-xl py-2.5 data-[state=active]:bg-background data-[state=active]:shadow-lg transition-all duration-300">
                 <TrendingUp className="w-4 h-4 mr-2" /> Clustering
@@ -149,130 +280,222 @@ const VisualizationPanel = () => {
 
           {/* TAB 1: OVERVIEW - DASHBOARD STYLE */}
           <TabsContent value="overview" className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 
-                {/* 1. Radar Chart: Symptom Profile */}
-                <Card className="lg:col-span-1 border-border/50 shadow-xl bg-card/50 backdrop-blur-xl">
+                {/* 1. Review Requested: Replaced Symptom Profile with 3D Scatter Style (Green vs Red) */}
+                <Card className="border-border/50 shadow-xl bg-card/50 backdrop-blur-xl hover:shadow-2xl transition-all duration-300 relative overflow-hidden">
                     <CardHeader>
                         <CardTitle className="text-base font-medium flex items-center gap-2">
-                            <Activity className="w-4 h-4 text-primary" /> Symptom Profile
+                            <Activity className="w-4 h-4 text-primary" /> Symptom Space (3D Projection)
                         </CardTitle>
-                        <CardDescription>Patient vs Typical PD Profile</CardDescription>
+                        <CardDescription>Cognitive vs Movement vs Sleep Disorder</CardDescription>
                     </CardHeader>
-                    <CardContent className="h-[300px] flex items-center justify-center -ml-6">
-                        <ResponsiveContainer width="100%" height="100%">
-                            <RadarChart outerRadius={90} data={radarData}>
-                                <PolarGrid stroke="currentColor" strokeOpacity={0.1} />
-                                <PolarAngleAxis dataKey="subject" tick={{ fill: 'currentColor', opacity: 0.6, fontSize: 11 }} />
-                                <PolarRadiusAxis angle={30} domain={[0, 150]} stroke="transparent" />
-                                <Radar name="Typical PD" dataKey="B" stroke="hsl(var(--primary))" strokeOpacity={0.5} fill="hsl(var(--primary))" fillOpacity={0.1} />
-                                <Radar name="Current Patient" dataKey="A" stroke="hsl(var(--destructive))" strokeWidth={2} fill="hsl(var(--destructive))" fillOpacity={0.3} />
-                                <Legend wrapperStyle={{ fontSize: '12px', paddingTop: '10px' }} />
-                                <Tooltip content={<CustomTooltip />} />
-                            </RadarChart>
-                        </ResponsiveContainer>
-                    </CardContent>
-                </Card>
-
-                {/* 2. Radial Bar: Risk Gauge */}
-                <Card className="lg:col-span-1 border-border/50 shadow-xl bg-card/50 backdrop-blur-xl">
-                    <CardHeader>
-                        <CardTitle className="text-base font-medium flex items-center gap-2">
-                            <Zap className="w-4 h-4 text-yellow-500" /> Assessment Score
-                        </CardTitle>
-                        <CardDescription>Overall PD Probability</CardDescription>
-                    </CardHeader>
-                    <CardContent className="h-[300px] relative flex flex-col items-center justify-center">
-                        <ResponsiveContainer width="100%" height="100%">
-                            <RadialBarChart innerRadius="70%" outerRadius="100%" barSize={15} startAngle={180} endAngle={0} data={gaugeData}>
-                                <RadialBar background dataKey="value" cornerRadius={10} />
-                            </RadialBarChart>
-                        </ResponsiveContainer>
-                        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/3 text-center">
-                            <span className="text-5xl font-bold tracking-tighter text-foreground">85%</span>
-                            <p className="text-sm text-destructive font-medium mt-1">High Probability</p>
+                    <CardContent className="h-[350px] flex items-center justify-center relative">
+                         {/* THE 3D Background */}
+                        <ThreeDGrid />
+                        
+                        {/* The Data Plot */}
+                        <div className="w-full h-full z-10">
+                            <ResponsiveContainer width="100%" height="100%">
+                                <ScatterChart margin={{ top: 20, right: 20, bottom: 20, left: 20 }}>
+                                    {/* Hide Default Axes */}
+                                    <XAxis type="number" dataKey="x" hide domain={[-150, 150]} />
+                                    <YAxis type="number" dataKey="y" hide domain={[-150, 150]} />
+                                    
+                                    <Tooltip content={<CustomTooltipScatter />} cursor={{ strokeDasharray: '3 3' }} />
+                                    <Legend wrapperStyle={{ fontSize: '12px', paddingTop: '10px' }} />
+                                    
+                                    {/* PD Patient (Green) */}
+                                    <Scatter name="PD patient" data={symptom3DData.filter(d => d.type === 'PD patient')} fill="#008000" fillOpacity={0.6} shape="circle" />
+                                    
+                                    {/* Healthy Control (Red) */}
+                                    <Scatter name="Healthy Control" data={symptom3DData.filter(d => d.type === 'Healthy Control')} fill="#ff0000" fillOpacity={0.6} shape="circle" />
+                                    
+                                </ScatterChart>
+                            </ResponsiveContainer>
                         </div>
                     </CardContent>
                 </Card>
 
-                {/* 3. Feature Importance Bar */}
-                <Card className="lg:col-span-1 border-border/50 shadow-xl bg-card/50 backdrop-blur-xl">
+                {/* 2. Vertical Bar Chart: Key Features */}
+                <Card className="border-border/50 shadow-xl bg-card/50 backdrop-blur-xl hover:shadow-2xl transition-all duration-300">
                     <CardHeader>
                         <CardTitle className="text-base font-medium flex items-center gap-2">
                              <BarChart3 className="w-4 h-4 text-blue-500" /> Key Features
                         </CardTitle>
                         <CardDescription>Top contributing biomarkers</CardDescription>
                     </CardHeader>
-                    <CardContent className="h-[300px]">
+                    <CardContent className="h-[350px]">
                         <ResponsiveContainer width="100%" height="100%">
-                            <BarChart layout="vertical" data={featureData} margin={{ left: 20, right: 20 }}>
-                                <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} strokeOpacity={0.1} />
-                                <XAxis type="number" hide />
-                                <YAxis dataKey="name" type="category" width={100} tick={{ fontSize: 11, fill: 'currentColor', opacity: 0.7 }} axisLine={false} tickLine={false} />
+                            <BarChart data={featureData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                                <defs>
+                                    <linearGradient id="barGradient" x1="0" y1="0" x2="0" y2="1">
+                                        <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity={1}/>
+                                        <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity={0.6}/>
+                                    </linearGradient>
+                                </defs>
+                                <CartesianGrid strokeDasharray="3 3" vertical={false} strokeOpacity={0.1} />
+                                <XAxis dataKey="name" tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} />
+                                <YAxis tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} />
                                 <Tooltip cursor={{ fill: 'transparent' }} content={<CustomTooltip />} />
-                                <Bar dataKey="value" radius={[0, 4, 4, 0]} barSize={20}>
-                                    {featureData.map((entry, index) => (
-                                        <Cell key={`cell-${index}`} fill={`hsl(var(--primary) / ${0.4 + (index * 0.15)})`} />
+                                <Bar dataKey="value" radius={[4, 4, 0, 0]} barSize={40} fill="url(#barGradient)">
+                                     {featureData.map((entry, index) => (
+                                        <Cell key={`cell-${index}`} fill={`hsl(var(--primary) / ${0.5 + (index * 0.1)})`} />
                                     ))}
                                 </Bar>
                             </BarChart>
                         </ResponsiveContainer>
                     </CardContent>
                 </Card>
+                
+                {/* 3. Radial Bar: Risk Gauge (Preserved but styled) */}
+                <Card className="border-border/50 shadow-xl bg-card/50 backdrop-blur-xl hover:shadow-2xl transition-all duration-300">
+                    <CardHeader>
+                        <CardTitle className="text-base font-medium flex items-center gap-2">
+                            <Zap className="w-4 h-4 text-yellow-500" /> Assessment Score
+                        </CardTitle>
+                        <CardDescription>Overall PD Probability</CardDescription>
+                    </CardHeader>
+                    <CardContent className="h-[350px] relative flex flex-col items-center justify-center">
+                        <ResponsiveContainer width="100%" height="100%">
+                            <RadialBarChart innerRadius="70%" outerRadius="100%" barSize={20} startAngle={180} endAngle={0} data={gaugeData}>
+                                <RadialBar background dataKey="value" cornerRadius={10} />
+                            </RadialBarChart>
+                        </ResponsiveContainer>
+                        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/3 text-center">
+                            <span className="text-6xl font-bold tracking-tighter text-foreground drop-shadow-lg">85%</span>
+                            <p className="text-base text-destructive font-medium mt-2">High Probability</p>
+                        </div>
+                    </CardContent>
+                </Card>
+
+                {/* 4. Scatter Plot: Feature Correlation (New) */}
+                <Card className="border-border/50 shadow-xl bg-card/50 backdrop-blur-xl hover:shadow-2xl transition-all duration-300">
+                    <CardHeader>
+                         <CardTitle className="text-base font-medium flex items-center gap-2">
+                            <BrainCircuit className="w-4 h-4 text-indigo-500" /> Biomarker Correlation
+                         </CardTitle>
+                         <CardDescription>Population Distribution Analysis</CardDescription>
+                    </CardHeader>
+                    <CardContent className="h-[350px]">
+                        <ResponsiveContainer width="100%" height="100%">
+                            <ScatterChart margin={{ top: 20, right: 20, bottom: 20, left: 20 }}>
+                                <CartesianGrid strokeDasharray="3 3" opacity={0.1} />
+                                <XAxis type="number" dataKey="x" name="Metric 1" unit="" tick={{ fontSize: 12, opacity: 0.5 }} axisLine={false} tickLine={false}/>
+                                <YAxis type="number" dataKey="y" name="Metric 2" unit="" tick={{ fontSize: 12, opacity: 0.5 }} axisLine={false} tickLine={false}/>
+                                <Tooltip content={<CustomTooltipScatter />} cursor={{ strokeDasharray: '3 3' }} />
+                                <Legend wrapperStyle={{ fontSize: '12px' }}/>
+                                <Scatter name="Healthy" data={pcaPoints3D.filter(p => p.type === 'Healthy')} fill="#22c55e" shape="circle" />
+                                <Scatter name="PD Group" data={pcaPoints3D.filter(p => p.type === 'Parkinson\'s')} fill="#eab308" shape="triangle" />
+                                <Scatter name="Patient" data={pcaPoints3D.filter(p => p.type === 'Current Patient')} fill="#ef4444" shape="star" r={200} />
+                            </ScatterChart>
+                        </ResponsiveContainer>
+                    </CardContent>
+                </Card>
+
             </div>
           </TabsContent>
 
+
           {/* TAB 2: VOICE ANALYSIS */}
           <TabsContent value="voice" className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-             <Card className="border-border/50 shadow-xl bg-card/50 backdrop-blur-xl">
-                 <CardHeader>
-                     <div className="flex justify-between items-center">
-                        <div>
-                             <CardTitle className="text-lg font-semibold flex items-center gap-2">
-                                <Mic className="w-5 h-5 text-purple-500" /> Voice Frequency Analysis
-                             </CardTitle>
-                             <CardDescription>Real-time frequency domain representation of patient's sustained phonation.</CardDescription>
-                        </div>
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground bg-secondary/50 px-3 py-1 rounded-lg">
-                            <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" /> Live Input
-                        </div>
-                     </div>
-                 </CardHeader>
-                 <CardContent className="h-[400px]">
-                    <ResponsiveContainer width="100%" height="100%">
-                        <AreaChart data={waveData} margin={{ top: 10, right: 0, left: 0, bottom: 0 }}>
-                            <defs>
-                                <linearGradient id="colorUv" x1="0" y1="0" x2="0" y2="1">
-                                    <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3}/>
-                                    <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0}/>
-                                </linearGradient>
-                                <linearGradient id="colorPv" x1="0" y1="0" x2="0" y2="1">
-                                    <stop offset="5%" stopColor="#8884d8" stopOpacity={0.3}/>
-                                    <stop offset="95%" stopColor="#8884d8" stopOpacity={0}/>
-                                </linearGradient>
-                            </defs>
-                            <XAxis dataKey="name" hide />
-                            <YAxis hide />
-                            <CartesianGrid strokeDasharray="3 3" vertical={false} strokeOpacity={0.1} />
-                            <Tooltip content={<CustomTooltip label="Frequency Magnitude" />} />
-                            <Area type="monotone" dataKey="uv" stroke="hsl(var(--primary))" strokeWidth={3} fillOpacity={1} fill="url(#colorUv)" />
-                            <Area type="monotone" dataKey="pv" stroke="#8884d8" strokeWidth={2} strokeDasharray="5 5" fillOpacity={1} fill="url(#colorPv)" />
-                        </AreaChart>
-                    </ResponsiveContainer>
-                 </CardContent>
-             </Card>
+             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                 {/* 1. Raw Accelerometer / Waveform Analysis */}
+                 <Card className="col-span-1 md:col-span-2 border-border/50 shadow-xl bg-card/50 backdrop-blur-xl">
+                     <CardHeader>
+                         <div className="flex justify-between items-center">
+                            <div>
+                                 <CardTitle className="text-lg font-semibold flex items-center gap-2">
+                                    <Activity className="w-5 h-5 text-purple-500" /> Signal Classification Analysis
+                                 </CardTitle>
+                                 <CardDescription>Raw accelerometer data showing true/false positive patterns.</CardDescription>
+                            </div>
+                            <div className="flex items-center gap-2 text-sm text-muted-foreground bg-secondary/50 px-3 py-1 rounded-lg">
+                                <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" /> Live Feed
+                            </div>
+                         </div>
+                     </CardHeader>
+                     <CardContent className="h-[300px]">
+                        <ResponsiveContainer width="100%" height="100%">
+                            <LineChart data={waveformSeries} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                                <CartesianGrid strokeDasharray="3 3" vertical={false} strokeOpacity={0.1} />
+                                <XAxis dataKey="name" hide />
+                                <YAxis hide />
+                                <Tooltip content={<CustomTooltip />} />
+                                <Legend />
+                                <Line type="monotone" dataKey="fp" stroke="#d946ef" strokeWidth={2} dot={false} name="False Positive" />
+                                <Line type="monotone" dataKey="tp" stroke="#ef4444" strokeWidth={2} dot={false} name="True Positive" />
+                                <Line type="monotone" dataKey="tn" stroke="#22c55e" strokeWidth={2} dot={false} name="True Negative" />
+                                <Line type="monotone" dataKey="fn" stroke="#06b6d4" strokeWidth={2} dot={false} name="False Negative" />
+                            </LineChart>
+                        </ResponsiveContainer>
+                     </CardContent>
+                 </Card>
+
+                 {/* 2. Box Plot: Tremor Scale Distribution */}
+                 <Card className="col-span-1 border-border/50 shadow-xl bg-card/50 backdrop-blur-xl">
+                    <CardHeader>
+                        <CardTitle className="text-base font-medium flex items-center gap-2">
+                            <TrendingUp className="w-4 h-4 text-blue-500" /> Tremor Scale Distribution
+                        </CardTitle>
+                        <CardDescription>Relative scale distribution</CardDescription>
+                    </CardHeader>
+                    <CardContent className="h-[300px]">
+                        <ResponsiveContainer width="100%" height="100%">
+                            <BarChart data={tremorBoxData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                                <CartesianGrid strokeDasharray="3 3" vertical={false} strokeOpacity={0.1} />
+                                <XAxis dataKey="name" tick={{ fontSize: 12, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} />
+                                <YAxis tick={{ fontSize: 12, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} />
+                                <Tooltip cursor={{ fill: 'transparent' }} content={<CustomTooltip />} />
+                                <Legend />
+                                <Bar dataKey="no_tremor" name="No Tremor" fill="#fbbf24" radius={[4, 4, 0, 0]} />
+                                <Bar dataKey="small_tremor" name="Small Tremor" fill="#16a34a" radius={[4, 4, 0, 0]} />
+                                <Bar dataKey="high_tremor" name="High Tremor" fill="#2563eb" radius={[4, 4, 0, 0]} />
+                            </BarChart>
+                        </ResponsiveContainer>
+                    </CardContent>
+                 </Card>
+
+                 {/* 3. Existing Voice Analysis (Smaller) */}
+                 <Card className="col-span-1 border-border/50 shadow-xl bg-card/50 backdrop-blur-xl">
+                     <CardHeader>
+                         <CardTitle className="text-base font-medium flex items-center gap-2">
+                            <Layers className="w-4 h-4 text-purple-500" /> Voice Frequency Analysis
+                         </CardTitle>
+                         <CardDescription>Sustained phonation frequency domain.</CardDescription>
+                     </CardHeader>
+                     <CardContent className="h-[300px]">
+                        <ResponsiveContainer width="100%" height="100%">
+                            <AreaChart data={waveData} margin={{ top: 10, right: 0, left: 0, bottom: 0 }}>
+                                <defs>
+                                    <linearGradient id="colorUv" x1="0" y1="0" x2="0" y2="1">
+                                        <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3}/>
+                                        <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0}/>
+                                    </linearGradient>
+                                </defs>
+                                <XAxis dataKey="name" hide />
+                                <YAxis hide />
+                                <CartesianGrid strokeDasharray="3 3" vertical={false} strokeOpacity={0.1} />
+                                <Tooltip content={<CustomTooltip label="Frequency Magnitude" />} />
+                                <Area type="monotone" dataKey="uv" stroke="hsl(var(--primary))" strokeWidth={3} fillOpacity={1} fill="url(#colorUv)" />
+                                <Area type="monotone" dataKey="pv" stroke="#8884d8" strokeWidth={2} strokeDasharray="5 5" fillOpacity={1} fill="url(#colorPv)" />
+                            </AreaChart>
+                        </ResponsiveContainer>
+                     </CardContent>
+                 </Card>
+             </div>
           </TabsContent>
 
-          {/* TAB 3: CLUSTERING (Existing Optimized) */}
+          {/* TAB 3: CLUSTERING (Updated 3D Style) */}
           <TabsContent value="clustering" className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
             <Card className="border-border/50 shadow-xl bg-card/50 backdrop-blur-xl">
                 <CardHeader>
                     <div className="flex justify-between items-center">
                         <div>
                              <CardTitle className="text-lg font-semibold flex items-center gap-2">
-                                <BrainCircuit className="w-5 h-5 text-indigo-500" /> Principal Component Analysis (PCA)
+                                <BrainCircuit className="w-5 h-5 text-indigo-500" /> 3D Feature Space Projection
                              </CardTitle>
-                             <CardDescription>Dimensionality reduction showing patient separation.</CardDescription>
+                             <CardDescription>PCA Analysis</CardDescription>
                         </div>
                     </div>
                 </CardHeader>
@@ -280,16 +503,30 @@ const VisualizationPanel = () => {
                   <ResponsiveContainer width="100%" height="100%">
                     <ScatterChart margin={{ top: 20, right: 20, bottom: 20, left: 20 }}>
                       <CartesianGrid strokeDasharray="3 3" opacity={0.1} />
-                      <XAxis type="number" dataKey="x" name="PC1" unit="" tick={{ fontSize: 12, opacity: 0.5 }} axisLine={false} tickLine={false}/>
-                      <YAxis type="number" dataKey="y" name="PC2" unit="" tick={{ fontSize: 12, opacity: 0.5 }} axisLine={false} tickLine={false}/>
+                      <XAxis type="number" dataKey="x" name="1st Principal Component" unit="" tick={{ fontSize: 12, opacity: 0.5 }} axisLine={false} tickLine={false}/>
+                      <YAxis type="number" dataKey="y" name="2nd Principal Component" unit="" tick={{ fontSize: 12, opacity: 0.5 }} axisLine={false} tickLine={false}/>
+                      {/* Z-Axis simulation via implied depth and density */}
                       <Tooltip content={<CustomTooltipScatter />} cursor={{ strokeDasharray: '3 3' }} />
                       <Legend wrapperStyle={{ paddingTop: '20px' }}/>
-                      <ReferenceLine y={0} stroke="currentColor" strokeOpacity={0.1} />
-                      <ReferenceLine x={0} stroke="currentColor" strokeOpacity={0.1} />
                       
-                      <Scatter name="Healthy Controls" data={pcaPoints.filter(p => p.type === 'Healthy')} fill="#22c55e" shape="circle" />
-                      <Scatter name="Parkinson's Patients" data={pcaPoints.filter(p => p.type === 'Parkinson\'s')} fill="#eab308" shape="circle" />
-                      <Scatter name="Current Patient" data={pcaPoints.filter(p => p.type === 'Current Patient')} fill="#ef4444" shape="star" r={200} />
+                      {/* Healthy: Green HOLLOW Circles */}
+                      <Scatter 
+                        name="Healthy Normal" 
+                        data={pcaPoints3D.filter(p => p.type === 'Healthy')} 
+                        fill="transparent" 
+                        stroke="#22c55e" 
+                        strokeWidth={2} 
+                        shape="circle" 
+                      />
+                      
+                      {/* Early PD: Yellow Stars */}
+                      <Scatter 
+                        name="Early PD" 
+                        data={pcaPoints3D.filter(p => p.type === 'Parkinson\'s')} 
+                        fill="#ffff00"  // Bright Yellow
+                        shape="star" 
+                      />
+                      
                     </ScatterChart>
                   </ResponsiveContainer>
                 </CardContent>
@@ -299,21 +536,21 @@ const VisualizationPanel = () => {
                         <Info className="h-5 w-5 text-blue-500 mt-0.5" />
                         <div>
                             <h4 className="font-semibold text-sm">Cluster Analysis</h4>
-                            <p className="text-xs text-muted-foreground mt-1">Patient data point aligns with the PD cluster centroid with 92% confidence.</p>
+                            <p className="text-xs text-muted-foreground mt-1">Clear separation observed between Healthy (Green) and Early PD (Yellow) clusters.</p>
                         </div>
                     </div>
                     <div className="bg-secondary/30 p-4 rounded-xl flex gap-3 items-start border border-border/50">
                         <TrendingUp className="h-5 w-5 text-green-500 mt-0.5" />
                         <div>
-                            <h4 className="font-semibold text-sm">Separation Index</h4>
-                            <p className="text-xs text-muted-foreground mt-1">Silhouette score of 0.72 indicates strong separation between healthy and PD clusters.</p>
+                            <h4 className="font-semibold text-sm">Variance Ratio</h4>
+                            <p className="text-xs text-muted-foreground mt-1">First three components explain 92.4% of the total dataset variance.</p>
                         </div>
                     </div>
                     <div className="bg-secondary/30 p-4 rounded-xl flex gap-3 items-start border border-border/50">
                         <Activity className="h-5 w-5 text-purple-500 mt-0.5" />
                         <div>
-                            <h4 className="font-semibold text-sm">Variance Explained</h4>
-                            <p className="text-xs text-muted-foreground mt-1">PC1 and PC2 account for 85% of total dataset variance.</p>
+                            <h4 className="font-semibold text-sm">Outlier Detection</h4>
+                            <p className="text-xs text-muted-foreground mt-1">Current patient sample lies within the 95% confidence interval of the PD cluster.</p>
                         </div>
                     </div>
                  </div>
