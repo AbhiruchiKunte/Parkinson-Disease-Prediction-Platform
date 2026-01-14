@@ -214,7 +214,7 @@ const VoiceAnalysis = () => {
             </div>
 
             <Tabs defaultValue="voice" className="max-w-4xl mx-auto">
-                <TabsList className="grid w-full grid-cols-2 mb-8 h-14 bg-secondary/20 p-1 rounded-2xl">
+                <TabsList className="grid w-full grid-cols-1 sm:grid-cols-2 mb-8 h-auto sm:h-14 bg-secondary/20 p-1 rounded-2xl">
                     <TabsTrigger value="voice" className="text-lg rounded-xl data-[state=active]:bg-white data-[state=active]:shadow-lg transition-all">
                         <Mic className="w-5 h-5 mr-2" /> Voice Analysis
                     </TabsTrigger>

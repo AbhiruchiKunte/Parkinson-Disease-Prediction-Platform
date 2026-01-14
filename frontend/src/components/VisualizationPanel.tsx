@@ -198,6 +198,34 @@ const VisualizationPanel = () => {
     );
   };
 
+  // Custom Horizontal Wall Background
+  const BackWallGrid = () => (
+      <svg style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none', zIndex: 0 }} viewBox="0 0 400 300" preserveAspectRatio="none">
+          {/* Floor Grid */}
+          <path d="M0,250 L400,250" stroke="#94a3b8" strokeWidth="2" />
+          <path d="M20,250 L-40,300" stroke="#cbd5e1" strokeWidth="1.5" opacity="0.8" />
+          <path d="M380,250 L440,300" stroke="#cbd5e1" strokeWidth="1.5" opacity="0.8" />
+          
+          {/* Back Wall Grid (Horizontal lines) */}
+          {[50, 100, 150, 200, 250].map(y => (
+              <line key={`h-${y}`} x1="0" y1={y} x2="400" y2={y} stroke="#cbd5e1" strokeWidth="0.7" opacity="0.6" />
+          ))}
+          {/* Back Wall Vertical lines */}
+          {[40, 80, 120, 160, 200, 240, 280, 320, 360].map(x => (
+              <line key={`v-${x}`} x1={x} y1="50" x2={x} y2="250" stroke="#cbd5e1" strokeWidth="0.7" opacity="0.6" />
+          ))}
+          
+          {/* Frame/Border to give "Wall" feel */}
+          <rect x="0" y="50" width="400" height="200" fill="url(#wallGradient)" opacity="0.4" />
+          <defs>
+              <linearGradient id="wallGradient" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#fff" stopOpacity={0.2}/>
+                  <stop offset="100%" stopColor="#fff" stopOpacity={0.6}/>
+              </linearGradient>
+          </defs>
+      </svg>
+  );
+
   // --- CUSTOM TOOLTIPS ---
 
   const CustomTooltipScatter = ({ active, payload }: any) => {
@@ -256,7 +284,7 @@ const VisualizationPanel = () => {
 
         <Tabs defaultValue="overview" className="max-w-7xl mx-auto" onValueChange={setActiveTab}>
           <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mb-8">
-            <TabsList className="grid grid-cols-3 w-full sm:w-auto p-1 bg-muted/30 backdrop-blur-sm border border-border/50 rounded-2xl h-auto">
+            <TabsList className="grid grid-cols-1 sm:grid-cols-3 w-full sm:w-auto p-1 bg-muted/30 backdrop-blur-sm border border-border/50 rounded-2xl h-auto">
               <TabsTrigger value="overview" className="rounded-xl py-2.5 data-[state=active]:bg-background data-[state=active]:shadow-lg transition-all duration-300">
                 <BrainCircuit className="w-4 h-4 mr-2" /> Overview
               </TabsTrigger>
@@ -269,7 +297,7 @@ const VisualizationPanel = () => {
             </TabsList>
 
             <div className="flex gap-2">
-                <Button variant="outline" size="sm" className="hidden sm:flex items-center gap-2 rounded-xl backdrop-blur-sm bg-background/50">
+                <Button variant="outline" size="sm" className="flex items-center gap-2 rounded-xl backdrop-blur-sm bg-background/50">
                     <Share2 className="w-4 h-4" /> Share
                 </Button>
                 <Button variant="default" size="sm" className="items-center gap-2 rounded-xl shadow-lg shadow-primary/20">
@@ -377,14 +405,15 @@ const VisualizationPanel = () => {
                          </CardTitle>
                          <CardDescription>Population Distribution Analysis</CardDescription>
                     </CardHeader>
-                    <CardContent className="h-[350px]">
+                    <CardContent className="h-[350px] relative">
+                        <BackWallGrid />
                         <ResponsiveContainer width="100%" height="100%">
-                            <ScatterChart margin={{ top: 20, right: 20, bottom: 20, left: 20 }}>
+                            <ScatterChart margin={{ top: 20, right: 20, bottom: 50, left: 20 }}>
                                 <CartesianGrid strokeDasharray="3 3" opacity={0.1} />
                                 <XAxis type="number" dataKey="x" name="Metric 1" unit="" tick={{ fontSize: 12, opacity: 0.5 }} axisLine={false} tickLine={false}/>
                                 <YAxis type="number" dataKey="y" name="Metric 2" unit="" tick={{ fontSize: 12, opacity: 0.5 }} axisLine={false} tickLine={false}/>
                                 <Tooltip content={<CustomTooltipScatter />} cursor={{ strokeDasharray: '3 3' }} />
-                                <Legend wrapperStyle={{ fontSize: '12px' }}/>
+                                <Legend verticalAlign="bottom" align="center" wrapperStyle={{ fontSize: '12px', paddingTop: '20px', width: '100%' }} />
                                 <Scatter name="Healthy" data={pcaPoints3D.filter(p => p.type === 'Healthy')} fill="#22c55e" shape="circle" />
                                 <Scatter name="PD Group" data={pcaPoints3D.filter(p => p.type === 'Parkinson\'s')} fill="#eab308" shape="triangle" />
                                 <Scatter name="Patient" data={pcaPoints3D.filter(p => p.type === 'Current Patient')} fill="#ef4444" shape="star" r={200} />
@@ -472,13 +501,18 @@ const VisualizationPanel = () => {
                                         <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3}/>
                                         <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0}/>
                                     </linearGradient>
+                                    <linearGradient id="colorPv" x1="0" y1="0" x2="0" y2="1">
+                                        <stop offset="5%" stopColor="#8884d8" stopOpacity={0.3}/>
+                                        <stop offset="95%" stopColor="#8884d8" stopOpacity={0}/>
+                                    </linearGradient>
                                 </defs>
                                 <XAxis dataKey="name" hide />
                                 <YAxis hide />
                                 <CartesianGrid strokeDasharray="3 3" vertical={false} strokeOpacity={0.1} />
                                 <Tooltip content={<CustomTooltip label="Frequency Magnitude" />} />
-                                <Area type="monotone" dataKey="uv" stroke="hsl(var(--primary))" strokeWidth={3} fillOpacity={1} fill="url(#colorUv)" />
-                                <Area type="monotone" dataKey="pv" stroke="#8884d8" strokeWidth={2} strokeDasharray="5 5" fillOpacity={1} fill="url(#colorPv)" />
+                                <Legend />
+                                <Area type="monotone" dataKey="uv" name="Patient Voice" stroke="hsl(var(--primary))" strokeWidth={3} fillOpacity={1} fill="url(#colorUv)" />
+                                <Area type="monotone" dataKey="pv" name="Healthy Baseline" stroke="#8884d8" strokeWidth={2} strokeDasharray="5 5" fillOpacity={1} fill="url(#colorPv)" />
                             </AreaChart>
                         </ResponsiveContainer>
                      </CardContent>
@@ -499,7 +533,8 @@ const VisualizationPanel = () => {
                         </div>
                     </div>
                 </CardHeader>
-                <CardContent className="h-[500px]">
+                <CardContent className="h-[500px] relative">
+                  <BackWallGrid />
                   <ResponsiveContainer width="100%" height="100%">
                     <ScatterChart margin={{ top: 20, right: 20, bottom: 20, left: 20 }}>
                       <CartesianGrid strokeDasharray="3 3" opacity={0.1} />
@@ -509,21 +544,22 @@ const VisualizationPanel = () => {
                       <Tooltip content={<CustomTooltipScatter />} cursor={{ strokeDasharray: '3 3' }} />
                       <Legend wrapperStyle={{ paddingTop: '20px' }}/>
                       
-                      {/* Healthy: Green HOLLOW Circles */}
+                      {/* Healthy: Green Circles (Low Opacity Fill for Legend Visibility) */}
                       <Scatter 
                         name="Healthy Normal" 
                         data={pcaPoints3D.filter(p => p.type === 'Healthy')} 
-                        fill="transparent" 
+                        fill="#22c55e"
+                        fillOpacity={0.2}
                         stroke="#22c55e" 
                         strokeWidth={2} 
                         shape="circle" 
                       />
                       
-                      {/* Early PD: Yellow Stars */}
+                      {/* Early PD: Dark Yellow Stars */}
                       <Scatter 
                         name="Early PD" 
                         data={pcaPoints3D.filter(p => p.type === 'Parkinson\'s')} 
-                        fill="#ffff00"  // Bright Yellow
+                        fill="#f4ce5bff"  
                         shape="star" 
                       />
                       

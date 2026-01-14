@@ -5,9 +5,9 @@ const Footer = () => {
   return (
     <footer className="bg-card border-t border-border mt-auto">
       <div className="container mx-auto px-4 py-8">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-8 text-center md:text-left">
           <div className="space-y-4">
-            <div className="flex items-center space-x-2">
+            <div className="flex items-center justify-center md:justify-start space-x-2">
               <div className="p-1 rounded bg-gradient-hero">
                 <Brain className="h-5 w-5 text-white" />
               </div>
@@ -39,8 +39,8 @@ const Footer = () => {
 
           <div>
             <h3 className="font-semibold mb-4 text-foreground">Contact</h3>
-            <div className="flex space-x-4">
-              <a href="#" className="text-muted-foreground hover:text-primary transition-colors">
+            <div className="flex justify-center md:justify-start space-x-4">
+              <a href="https://github.com/AbhiruchiKunte/Parkinson-Disease-Prediction-Platform" className="text-muted-foreground hover:text-primary transition-colors">
                 <Github className="h-5 w-5" />
               </a>
               <a href="#" className="text-muted-foreground hover:text-primary transition-colors">
