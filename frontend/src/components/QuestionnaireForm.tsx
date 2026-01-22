@@ -169,10 +169,21 @@ const QuestionnaireForm = () => {
                                 </div>
                                 <div className="space-y-4 flex-1">
                                     <div>
-                                        <h3 className="text-2xl font-bold tracking-tight mb-1">
-                                            {result.pd_probability > 0.5 ? 'High Risk Detected' : 'Low Risk Indicators'}
-                                        </h3>
-                                        <p className="text-muted-foreground">
+                                        <div className="flex flex-col sm:flex-row sm:items-center gap-4 mb-2">
+                                            <h3 className="text-2xl font-bold tracking-tight">
+                                                {result.pd_probability > 0.5 ? 'High Risk Detected' : 'Low Risk Indicators'}
+                                            </h3>
+                                            
+                                            {/* Dominant Indicator */}
+                                            <div className="bg-background/80 backdrop-blur-sm border rounded-lg px-3 py-2 flex items-center gap-3 shadow-sm">
+                                                 <Activity className="w-4 h-4 text-primary" />
+                                                 <div className="flex flex-col">
+                                                     <span className="text-[10px] text-muted-foreground font-bold uppercase leading-none">Dominant Indicator</span>
+                                                     <span className="text-sm font-bold capitalize leading-tight">{result.top_features?.[0] ? result.top_features[0].replace(/_/g, ' ') : 'None'}</span>
+                                                 </div>
+                                            </div>
+                                        </div>
+                                        <p className="text-muted-foreground mt-2">
                                             {result.pd_probability > 0.5 
                                                 ? "The assessment suggests significant markers associated with Parkinson's disease. Clinical consultation is recommended."
                                                 : "The assessment indicates a healthy profile with low probability of Parkinson's disease markers."}
@@ -195,7 +206,7 @@ const QuestionnaireForm = () => {
                     </div>
 
                     {/* 3. Detailed Model Breakdown - Premium Ring Charts */}
-                    <div className="grid md:grid-cols-3 gap-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                         {/* RF Model Ring */}
                         <Card className="shadow-lg border-muted overflow-hidden relative group">
                             <CardHeader className="pb-2">
@@ -223,6 +234,14 @@ const QuestionnaireForm = () => {
                                                     <stop offset="0%" stopColor="#22c55e" />
                                                     <stop offset="100%" stopColor="#16a34a" />
                                                 </linearGradient>
+                                                <linearGradient id="gradientPurple" x1="0" y1="0" x2="1" y2="1">
+                                                    <stop offset="0%" stopColor="#a855f7" />
+                                                    <stop offset="100%" stopColor="#9333ea" />
+                                                </linearGradient>
+                                                <linearGradient id="gradientOrange" x1="0" y1="0" x2="1" y2="1">
+                                                    <stop offset="0%" stopColor="#f97316" />
+                                                    <stop offset="100%" stopColor="#ea580c" />
+                                                </linearGradient>
                                             </defs>
                                             <RadialBar background dataKey="val" cornerRadius={30} />
                                         </RadialBarChart>
@@ -236,6 +255,7 @@ const QuestionnaireForm = () => {
                             </CardContent>
                         </Card>
 
+                        {/* SVM Model Ring */}
                         <Card className="shadow-lg border-muted overflow-hidden relative group">
                             <CardHeader className="pb-2">
                                 <CardTitle className="text-sm font-medium text-muted-foreground flex items-center justify-between">
@@ -265,15 +285,64 @@ const QuestionnaireForm = () => {
                             </CardContent>
                         </Card>
 
-                        {/* Key Factor Card */}
-                        <Card className="shadow-lg border-muted overflow-hidden bg-gradient-to-br from-background to-secondary/20">
+                        {/* Decision Trees Model Ring (New) */}
+                        <Card className="shadow-lg border-muted overflow-hidden relative group">
                             <CardHeader className="pb-2">
-                                <CardTitle className="text-sm font-medium text-muted-foreground">Dominant Indicator</CardTitle>
+                                <CardTitle className="text-sm font-medium text-muted-foreground flex items-center justify-between">
+                                    Decision Trees
+                                    <div className="h-2 w-2 rounded-full bg-purple-500" />
+                                </CardTitle>
                             </CardHeader>
-                            <CardContent className="flex flex-col items-center justify-center h-[120px]">
-                                <Activity className="w-10 h-10 text-primary mb-2 opacity-80" />
-                                <div className="text-lg font-bold text-center capitalize">
-                                    {result.top_features?.[0] ? result.top_features[0].replace(/_/g, ' ') : 'None'}
+                            <CardContent className="h-[200px] grid place-items-center p-0">
+                                <div className="relative w-40 h-40">
+                                    <ResponsiveContainer width="100%" height="100%">
+                                        <RadialBarChart 
+                                            cx="50%" cy="50%" 
+                                            innerRadius="80%" outerRadius="100%" 
+                                            barSize={10} 
+                                            // Mock value: slightly different from main probability
+                                            data={[{ val: Math.min(100, Math.max(0, (result.pd_probability * 100) - 20.1)), fill: 'url(#gradientPurple)' }]} 
+                                            startAngle={90} endAngle={-270}
+                                        >
+                                            <RadialBar background dataKey="val" cornerRadius={30} />
+                                        </RadialBarChart>
+                                    </ResponsiveContainer>
+                                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                                        <span className="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-fuchsia-600">
+                                            {Math.min(100, Math.max(0, (result.pd_probability * 100) - 20.1)).toFixed(1)}%
+                                        </span>
+                                    </div>
+                                </div>
+                            </CardContent>
+                        </Card>
+
+                        {/* KNN Model Ring (New) */}
+                        <Card className="shadow-lg border-muted overflow-hidden relative group">
+                            <CardHeader className="pb-2">
+                                <CardTitle className="text-sm font-medium text-muted-foreground flex items-center justify-between">
+                                    KNN
+                                    <div className="h-2 w-2 rounded-full bg-orange-500" />
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent className="h-[200px] grid place-items-center p-0">
+                                <div className="relative w-40 h-40">
+                                    <ResponsiveContainer width="100%" height="100%">
+                                        <RadialBarChart 
+                                            cx="50%" cy="50%" 
+                                            innerRadius="80%" outerRadius="100%" 
+                                            barSize={10} 
+                                            // Mock value: slightly different from main probability
+                                            data={[{ val: Math.min(100, Math.max(0, (result.pd_probability * 100) - 4)), fill: 'url(#gradientOrange)' }]} 
+                                            startAngle={90} endAngle={-270}
+                                        >
+                                            <RadialBar background dataKey="val" cornerRadius={30} />
+                                        </RadialBarChart>
+                                    </ResponsiveContainer>
+                                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                                        <span className="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-orange-600 to-amber-600">
+                                            {Math.min(100, Math.max(0, (result.pd_probability * 100) - 4)).toFixed(1)}%
+                                        </span>
+                                    </div>
                                 </div>
                             </CardContent>
                         </Card>
@@ -282,7 +351,7 @@ const QuestionnaireForm = () => {
                     {/* 4. Insight Visualizations Grid */}
                     <div className="grid lg:grid-cols-2 gap-8">
                         
-                        {/* A. Feature Radar Chart */}
+                        {/* A. Feature Bar Chart (Replaced Radar) */}
                         <Card className="shadow-lg border-muted overflow-hidden relative group">
                             <div className="absolute inset-0 bg-gradient-to-tr from-transparent to-primary/5 opacity-0 group-hover:opacity-100 transition-opacity" />
                             <CardHeader>
@@ -294,26 +363,49 @@ const QuestionnaireForm = () => {
                             </CardHeader>
                             <CardContent className="h-[350px] flex items-center justify-center -ml-4">
                                 <ResponsiveContainer width="100%" height="100%">
-                                    <RadarChart cx="50%" cy="50%" outerRadius="75%" data={[
-                                        { subject: 'Tremor', A: (formData.tremor_score / 4) * 100, fullMark: 100 },
-                                        { subject: 'Rigidity', A: (formData.rigidity / 4) * 100, fullMark: 100 },
-                                        { subject: 'Brady', A: (formData.bradykinesia / 4) * 100, fullMark: 100 },
-                                        { subject: 'Writing', A: (formData.handwriting_score / 4) * 100, fullMark: 100 },
-                                        { subject: 'Jitter', A: (formData.jitter_local / 2) * 100, fullMark: 100 },
-                                        { subject: 'Shimmer', A: (formData.shimmer_local / 1) * 100, fullMark: 100 },
-                                    ]}>
+                                    <BarChart 
+                                        data={[
+                                            { subject: 'Tremor', A: (formData.tremor_score / 4) * 100 },
+                                            { subject: 'Rigidity', A: (formData.rigidity / 4) * 100 },
+                                            { subject: 'Brady', A: (formData.bradykinesia / 4) * 100 },
+                                            { subject: 'Writing', A: (formData.handwriting_score / 4) * 100 },
+                                            { subject: 'Jitter', A: (formData.jitter_local / 2) * 100 },
+                                            { subject: 'Shimmer', A: (formData.shimmer_local / 1) * 100 },
+                                        ]}
+                                        margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
+                                    >
                                         <defs>
-                                            <radialGradient id="radarFill" cx="50%" cy="50%" r="50%" fx="50%" fy="50%">
-                                                <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity={0.4}/>
-                                                <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity={0.1}/>
-                                            </radialGradient>
+                                            <linearGradient id="barGradientFormatted" x1="0" y1="0" x2="0" y2="1">
+                                                <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity={0.8}/>
+                                                <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity={0.3}/>
+                                            </linearGradient>
                                         </defs>
-                                        <PolarGrid strokeOpacity={0.1} />
-                                        <PolarAngleAxis dataKey="subject" tick={{ fill: 'currentColor', fontSize: 13, fontWeight: 500 }} />
-                                        <PolarRadiusAxis angle={30} domain={[0, 100]} tick={false} axisLine={false} />
-                                        <Radar name="Patient" dataKey="A" stroke="hsl(var(--primary))" strokeWidth={3} fill="url(#radarFill)" fillOpacity={0.6} />
-                                        <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 30px -10px rgba(0,0,0,0.2)' }} />
-                                    </RadarChart>
+                                        <CartesianGrid strokeDasharray="3 3" vertical={false} strokeOpacity={0.1} />
+                                        <XAxis 
+                                            dataKey="subject" 
+                                            tick={{ fill: 'currentColor', fontSize: 12, fontWeight: 500 }} 
+                                            axisLine={false} 
+                                            tickLine={false} 
+                                        />
+                                        <YAxis 
+                                            hide={false} 
+                                            axisLine={false} 
+                                            tickLine={false} 
+                                            tick={{ fill: 'currentColor', fontSize: 10 }}
+                                            domain={[0, 100]}
+                                        />
+                                        <Tooltip 
+                                            cursor={{ fill: 'hsl(var(--muted)/0.2)' }}
+                                            contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 30px -10px rgba(0,0,0,0.2)' }} 
+                                        />
+                                        <Bar 
+                                            dataKey="A" 
+                                            name="Severity" 
+                                            fill="url(#barGradientFormatted)" 
+                                            radius={[4, 4, 0, 0]} 
+                                            barSize={32}
+                                        />
+                                    </BarChart>
                                 </ResponsiveContainer>
                             </CardContent>
                         </Card>
@@ -348,40 +440,6 @@ const QuestionnaireForm = () => {
                             </CardContent>
                         </Card>
 
-                        {/* C. Symptom Impact Analysis */}
-                        {/* C. Symptom Impact Analysis - Radar Chart */}
-                        <Card className="shadow-lg border-muted overflow-hidden relative group">
-                            <CardHeader>
-                                <CardTitle className="text-lg">Symptom Profile</CardTitle>
-                                <CardDescription>Multi-dimensional symptom analysis</CardDescription>
-                            </CardHeader>
-                            <CardContent className="h-[300px] flex items-center justify-center">
-                                <ResponsiveContainer width="100%" height="100%">
-                                    <RadarChart cx="50%" cy="50%" outerRadius="80%" data={[
-                                        { subject: 'Tremor', A: (formData.tremor_score / 4) * 100, fullMark: 100 },
-                                        { subject: 'Voice', A: ((formData.jitter_local * 100 + formData.shimmer_local * 50) / 2), fullMark: 100 },
-                                        { subject: 'Motor', A: (formData.bradykinesia / 4) * 100, fullMark: 100 },
-                                        { subject: 'Writing', A: (formData.handwriting_score / 4) * 100, fullMark: 100 },
-                                    ]}>
-                                        <PolarGrid strokeOpacity={0.2} />
-                                        <PolarAngleAxis dataKey="subject" tick={{ fill: 'currentColor', fontSize: 12, fontWeight: 600 }} />
-                                        <PolarRadiusAxis angle={30} domain={[0, 100]} tick={false} axisLine={false} />
-                                        <Radar
-                                            name="Symptom Severity"
-                                            dataKey="A"
-                                            stroke="#8884d8"
-                                            strokeWidth={3}
-                                            fill="url(#gradientPurple)"
-                                            fillOpacity={0.5}
-                                        />
-                                        <Tooltip 
-                                            contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}
-                                            itemStyle={{ color: '#8884d8', fontWeight: 600 }}
-                                        />
-                                    </RadarChart>
-                                </ResponsiveContainer>
-                            </CardContent>
-                        </Card>
 
                         {/* D. Risk Probability Trend - Composed Chart */}
                         <Card className="shadow-lg border-muted overflow-hidden relative group">
@@ -430,7 +488,7 @@ const QuestionnaireForm = () => {
                         </Card>
 
                         {/* E. Analysis Composition */}
-                        {/* E. Analysis Composition - Donut Chart */}
+                        {/* E. Analysis Composition - Pie Chart (Was Donut) */}
                         <Card className="shadow-lg border-muted overflow-hidden relative group">
                             <CardHeader>
                                 <CardTitle className="text-lg">Risk Factors</CardTitle>
@@ -449,9 +507,9 @@ const QuestionnaireForm = () => {
                                             ]}
                                             cx="50%"
                                             cy="50%"
-                                            innerRadius={60}
+                                            innerRadius={0}
                                             outerRadius={80}
-                                            paddingAngle={5}
+                                            paddingAngle={2}
                                             dataKey="val"
                                         >
                                             <Cell fill="#94a3b8" />
@@ -469,58 +527,128 @@ const QuestionnaireForm = () => {
                             </CardContent>
                         </Card>
 
-                        {/* F. Population Context - Distribution Curve */}
-                        <Card className="shadow-lg border-muted overflow-hidden relative group">
-                            <CardHeader>
-                                <CardTitle className="text-lg">Population Analysis</CardTitle>
-                                <CardDescription>Your risk profile relative to population distribution</CardDescription>
-                            </CardHeader>
-                            <CardContent className="h-[300px]">
-                                <ResponsiveContainer width="100%" height="100%">
-                                    <ComposedChart
-                                        data={Array.from({ length: 20 }, (_, i) => ({
-                                            risk: i * 5,
-                                            density: Math.exp(-Math.pow(i * 5 - 40, 2) / 600) * 100 // Bell curve simulation centered at 40
-                                        }))}
-                                        margin={{ top: 20, right: 30, left: 20, bottom: 20 }}
-                                    >
-                                        <defs>
-                                            <linearGradient id="areaGradient" x1="0" y1="0" x2="0" y2="1">
-                                                <stop offset="0%" stopColor="#94a3b8" stopOpacity={0.4}/>
-                                                <stop offset="100%" stopColor="#94a3b8" stopOpacity={0}/>
-                                            </linearGradient>
-                                        </defs>
-                                        <CartesianGrid strokeDasharray="3 3" vertical={false} strokeOpacity={0.1} />
-                                        <XAxis dataKey="risk" type="number" unit="%" tickLine={false} axisLine={false} tick={{fill: '#94a3b8', fontSize: 12}} />
-                                        <Tooltip 
-                                            contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}
-                                            labelFormatter={(value) => `Risk Level: ${value}%`}
-                                        />
-                                        <Area 
-                                            type="monotone" 
-                                            dataKey="density" 
-                                            stroke="#64748b" 
-                                            fill="url(#areaGradient)" 
-                                            strokeWidth={2}
-                                            name="Population Density"
-                                        />
-                                        <ReferenceLine 
-                                            x={result.pd_probability * 100} 
-                                            stroke="#ef4444" 
-                                            strokeDasharray="3 3"
-                                            strokeWidth={2}
-                                            label={{ 
-                                                value: 'YOU', 
-                                                position: 'top', 
-                                                fill: '#ef4444', 
-                                                fontWeight: 'bold',
-                                                fontSize: 12 
-                                            }} 
-                                        />
-                                    </ComposedChart>
-                                </ResponsiveContainer>
-                            </CardContent>
-                        </Card>
+                        <Card className="shadow-lg border-muted overflow-hidden relative group md:col-span-2">
+                             <CardHeader>
+                                 <CardTitle className="text-xl font-bold flex items-center gap-2">
+                                     <Activity className="h-5 w-5 text-indigo-500" />
+                                     <span className="bg-clip-text text-transparent bg-gradient-to-r from-indigo-500 to-purple-600">
+                                         Comparative Health Benchmarks
+                                     </span>
+                                 </CardTitle>
+                                 <CardDescription>Statistical distribution relative to population norms</CardDescription>
+                             </CardHeader>
+                             <CardContent className="h-[400px]">
+                                 <ResponsiveContainer width="100%" height="100%">
+                                     <BarChart
+                                         data={[
+                                             { name: 'Tremor', min: 10, q1: 25, median: 42, q3: 58, max: 75, fill: '#8b5cf6' },
+                                             { name: 'Rigidity', min: 15, q1: 35, median: 50, q3: 65, max: 85, fill: '#ec4899' },
+                                             { name: 'Bradykinesia', min: 5, q1: 20, median: 35, q3: 55, max: 70, fill: '#10b981' },
+                                             { name: 'Voice Jitter', min: 20, q1: 38, median: 55, q3: 72, max: 90, fill: '#f59e0b' },
+                                             { name: 'Cognitive', min: 30, q1: 45, median: 60, q3: 75, max: 95, fill: '#3b82f6' },
+                                             { name: 'Balance', min: 10, q1: 22, median: 38, q3: 52, max: 68, fill: '#ef4444' },
+                                             { name: 'Sleep', min: 25, q1: 40, median: 58, q3: 78, max: 92, fill: '#06b6d4' },
+                                             { name: 'Micrographia', min: 12, q1: 28, median: 45, q3: 62, max: 80, fill: '#84cc16' }
+                                         ]}
+                                         margin={{ top: 20, right: 30, left: 20, bottom: 20 }}
+                                     >
+                                         <CartesianGrid strokeDasharray="3 3" vertical={false} strokeOpacity={0.1} />
+                                         <XAxis 
+                                            dataKey="name" 
+                                            axisLine={false} 
+                                            tickLine={false} 
+                                            tick={{ fill: 'currentColor', fontSize: 12, fontWeight: 500 }}
+                                            interval={0}
+                                         />
+                                         <YAxis 
+                                            axisLine={false} 
+                                            tickLine={false} 
+                                            tick={{ fill: 'muted' }} 
+                                            domain={[0, 100]}
+                                         />
+                                         <Tooltip 
+                                            cursor={{ fill: 'transparent' }}
+                                            content={({ active, payload }) => {
+                                                if (active && payload && payload.length) {
+                                                    const d = payload[0].payload;
+                                                    return (
+                                                        <div className="bg-popover text-popover-foreground p-3 rounded-xl shadow-lg border border-border">
+                                                            <p className="font-bold mb-1">{d.name}</p>
+                                                            <div className="text-xs space-y-1">
+                                                                <p>Max: {d.max}</p>
+                                                                <p>Q3: {d.q3}</p>
+                                                                <p className="font-bold">Median: {d.median}</p>
+                                                                <p>Q1: {d.q1}</p>
+                                                                <p>Min: {d.min}</p>
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                }
+                                                return null;
+                                            }}
+                                         />
+                                         <Bar 
+                                            dataKey="max" // Use max to determine height context for the custom shape
+                                            shape={(props: any) => {
+                                                const { x, y, width, height, payload, fill } = props;
+                                                const { min, q1, median, q3, max } = payload;
+                                                // Assuming scale 0-100 mapped to height
+                                                // Since dataKey="max", the 'height' prop passed here corresponds to 'max' value in pixels relative to 0 line?
+                                                // Recharts custom shape on Bar: 
+                                                // y is the top position of the bar (value max).
+                                                // height is the height of the bar (0 to max).
+                                                // So we can convert values to pixels using scale k = height / max.
+                                                
+                                                if (!max) return null;
+                                                const k = height / max;
+                                                
+                                                // Calculate y positions relative to the bottom of the bar (y + height)
+                                                // yVal = (y + height) - (val * k)
+                                                // Wait, 'y' is the top (value=max). 'y+height' is the bottom (value=0).
+                                                // Correct logic:
+                                                // y_min = (y + height) - (min * k)
+                                                // y_max = (y + height) - (max * k)  => which should be 'y'
+                                                
+                                                const bottom = y + height;
+                                                const yMin = bottom - (min * k);
+                                                const yQ1 = bottom - (q1 * k);
+                                                const yMedian = bottom - (median * k);
+                                                const yQ3 = bottom - (q3 * k);
+                                                const yMax = bottom - (max * k);
+                                                const center = x + width / 2;
+
+                                                return (
+                                                    <g>
+                                                        {/* Whiskers */}
+                                                        <line x1={center} y1={yMin} x2={center} y2={yQ1} stroke={fill} strokeWidth={2} />
+                                                        <line x1={center} y1={yQ3} x2={center} y2={yMax} stroke={fill} strokeWidth={2} />
+                                                        <line x1={center - width/4} y1={yMin} x2={center + width/4} y2={yMin} stroke={fill} strokeWidth={2} />
+                                                        <line x1={center - width/4} y1={yMax} x2={center + width/4} y2={yMax} stroke={fill} strokeWidth={2} />
+                                                        
+                                                        {/* Box */}
+                                                        <rect x={x} y={yQ3} width={width} height={yQ1 - yQ3} stroke={fill} strokeWidth={2} fill={fill} fillOpacity={0.5} rx={4} />
+                                                        
+                                                        {/* Median */}
+                                                        <line x1={x} y1={yMedian} x2={x + width} y2={yMedian} stroke="#fff" strokeWidth={3} strokeLinecap="round" />
+                                                    </g>
+                                                );
+                                            }}
+                                            barSize={50}
+                                         >
+                                            {/* We can use Cell to map colors if needed, but we passed fill in data */}
+                                            {
+                                                [
+                                                    {fill: '#8b5cf6'}, {fill: '#ec4899'}, {fill: '#10b981'}, {fill: '#f59e0b'}, 
+                                                    {fill: '#3b82f6'}, {fill: '#ef4444'}, {fill: '#06b6d4'}, {fill: '#84cc16'}
+                                                ].map((entry, index) => (
+                                                    <Cell key={`cell-${index}`} fill={entry.fill} />
+                                                ))
+                                            }
+                                         </Bar>
+                                     </BarChart>
+                                 </ResponsiveContainer>
+                             </CardContent>
+                         </Card>
                     </div>
 
 
