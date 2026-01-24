@@ -15,16 +15,16 @@ const Index = () => {
         <div className="container mx-auto px-6 relative z-10">
           <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-8 text-center">
             <div className="group p-8 bg-card/50 backdrop-blur-sm rounded-2xl shadow-sm border hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
-              <div className="text-5xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary to-blue-600 mb-2">96.5%</div>
+              <div className="text-5xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary to-blue-600 mb-2">96.37%</div>
               <div className="text-sm font-semibold tracking-wide uppercase text-muted-foreground">Detection Accuracy</div>
             </div>
             <div className="group p-8 bg-card/50 backdrop-blur-sm rounded-2xl shadow-sm border hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
-              <div className="text-5xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary to-blue-600 mb-2">&lt; 2s</div>
+              <div className="text-5xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary to-blue-600 mb-2">&lt; 3s</div>
               <div className="text-sm font-semibold tracking-wide uppercase text-muted-foreground">Processing Time</div>
             </div>
             <div className="group p-8 bg-card/50 backdrop-blur-sm rounded-2xl shadow-sm border hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
               <div className="text-5xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary to-blue-600 mb-2">5</div>
-              <div className="text-sm font-semibold tracking-wide uppercase text-muted-foreground">ML Algorithms</div>
+              <div className="text-sm font-semibold tracking-wide uppercase text-muted-foreground">Algorithms</div>
             </div>
             <div className="group p-8 bg-card/50 backdrop-blur-sm rounded-2xl shadow-sm border hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
               <div className="text-5xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary to-blue-600 mb-2">7k+</div>

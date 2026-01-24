@@ -18,6 +18,10 @@ CORS(app)
 # Initialize model handler
 model_handler = ModelHandler()
 
+# Register APIs
+from routes.user_routes import user_bp
+app.register_blueprint(user_bp, url_prefix='/api/users')
+
 @app.route('/health', methods=['GET'])
 def health_check():
     """Health check endpoint"""
