@@ -131,57 +131,61 @@ const QuestionnaireForm = () => {
                                     Based on the provided clinical indicators
                                 </CardDescription>
                             </CardHeader>
-                            <CardContent className="flex flex-col md:flex-row items-center gap-8 pt-4">
-                                <div className="relative w-48 h-48 flex-shrink-0">
-                                    <ResponsiveContainer width="100%" height="100%">
-                                        <RadialBarChart 
-                                            cx="50%" 
-                                            cy="50%" 
-                                            innerRadius="70%" 
-                                            outerRadius="100%" 
-                                            barSize={20} 
-                                            data={[{ name: 'Score', value: result.pd_probability * 100, fill: 'url(#scoreGradient)' }]} 
-                                            startAngle={180} 
-                                            endAngle={0}
-                                        >
-                                            <defs>
-                                                <linearGradient id="scoreGradient" x1="0" y1="0" x2="1" y2="0">
-                                                    <stop offset="0%" stopColor="#10b981" />
-                                                    <stop offset="50%" stopColor="#f59e0b" />
-                                                    <stop offset="100%" stopColor="#ef4444" />
-                                                </linearGradient>
-                                            </defs>
-                                            <RadialBar
-                                                background
-                                                dataKey="value"
-                                                cornerRadius={10}
-                                            />
-                                        </RadialBarChart>
-                                    </ResponsiveContainer>
-                                    <div className="absolute inset-0 flex flex-col items-center justify-center pt-8">
-                                        <span className="text-4xl font-bold tracking-tighter">
-                                            {(result.pd_probability * 100).toFixed(1)}%
-                                        </span>
-                                        <span className="text-xs text-muted-foreground uppercase font-semibold mt-1">
-                                            Confidence
-                                        </span>
-                                    </div>
+                            <CardContent className="flex flex-col md:flex-row items-start gap-8 pt-4">
+                                {/* 1. Speedometer Gauge Chart (Refined) */}
+                                <div className="relative w-full h-[240px] flex flex-col items-center justify-end overflow-visible">
+                                     
+                                     {/* Gauge Arc */}
+                                     <div className="absolute top-0 w-full h-[160px]">
+                                        <ResponsiveContainer width="100%" height="100%">
+                                            <PieChart>
+                                                <Pie
+                                                    dataKey="value"
+                                                    startAngle={180}
+                                                    endAngle={0}
+                                                    data={[
+                                                        { value: 25, fill: '#10b981' }, // Green
+                                                        { value: 25, fill: '#fbbf24' }, // Yellow
+                                                        { value: 25, fill: '#f97316' }, // Orange
+                                                        { value: 25, fill: '#ef4444' }  // Red
+                                                    ]}
+                                                    cx="50%"
+                                                    cy="100%"
+                                                    innerRadius={80}
+                                                    outerRadius={110}
+                                                    stroke="hsl(var(--card))"
+                                                    strokeWidth={3}
+                                                    paddingAngle={0}
+                                                >
+                                                    {[
+                                                        { value: 25, fill: '#10b981' },
+                                                        { value: 25, fill: '#fbbf24' },
+                                                        { value: 25, fill: '#f97316' },
+                                                        { value: 25, fill: '#ef4444' }
+                                                    ].map((entry, index) => (
+                                                        <Cell key={`cell-${index}`} fill={entry.fill} stroke="hsl(var(--card))" strokeWidth={2} />
+                                                    ))}
+                                                </Pie>
+                                            </PieChart>
+                                        </ResponsiveContainer>
+                                     </div>
+
+                                     {/* Score & Slider - Positioned below the arc */}
+                                     <div className="z-10 flex flex-col items-center mt-4">
+                                         <div className="text-5xl font-black tracking-tighter tabular-nums text-foreground drop-shadow-sm leading-none">
+                                             {(result.pd_probability * 100).toFixed(1)}
+                                         </div>
+                                         <div className="text-xs text-muted-foreground font-bold uppercase tracking-widest mb-3">Confidence Score</div>
+                                     </div>
                                 </div>
-                                <div className="space-y-4 flex-1">
+
+                                {/* 2. Text Content */}
+                                <div className="space-y-4 flex-1 -mt-12">
                                     <div>
                                         <div className="flex flex-col sm:flex-row sm:items-center gap-4 mb-2">
                                             <h3 className="text-2xl font-bold tracking-tight">
                                                 {result.pd_probability > 0.5 ? 'High Risk Detected' : 'Low Risk Indicators'}
                                             </h3>
-                                            
-                                            {/* Dominant Indicator */}
-                                            <div className="bg-background/80 backdrop-blur-sm border rounded-lg px-3 py-2 flex items-center gap-3 shadow-sm">
-                                                 <Activity className="w-4 h-4 text-primary" />
-                                                 <div className="flex flex-col">
-                                                     <span className="text-[10px] text-muted-foreground font-bold uppercase leading-none">Dominant Indicator</span>
-                                                     <span className="text-sm font-bold capitalize leading-tight">{result.top_features?.[0] ? result.top_features[0].replace(/_/g, ' ') : 'None'}</span>
-                                                 </div>
-                                            </div>
                                         </div>
                                         <p className="text-muted-foreground mt-2">
                                             {result.pd_probability > 0.5 
@@ -201,8 +205,44 @@ const QuestionnaireForm = () => {
                                         </div>
                                     </div>
                                 </div>
+
                             </CardContent>
                          </Card>
+
+                         {/* Dominant Indicators Column */}
+                         <div className="flex flex-col gap-4">
+                            {/* Indicator 1 */}
+                            <Card className="flex-1 bg-card/50 backdrop-blur-sm border hover:border-primary/50 transition-colors shadow-sm cursor-default group overflow-hidden relative">
+                                <div className="absolute inset-0 bg-primary/5 translate-y-full group-hover:translate-y-0 transition-transform duration-300" />
+                                <CardContent className="p-4 flex flex-col justify-center h-full relative z-10">
+                                    <div className="flex items-center gap-3 mb-2">
+                                        <div className="p-2 rounded-full bg-primary/10 text-primary">
+                                            <Activity className="w-5 h-5" />
+                                        </div>
+                                        <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Dominant Indicator</span>
+                                    </div>
+                                    <span className="text-lg font-bold capitalize truncate" title={result.top_features?.[0]?.replace(/_/g, ' ')}>
+                                        {result.top_features?.[0] ? result.top_features[0].replace(/_/g, ' ') : 'Tremor Score'}
+                                    </span>
+                                </CardContent>
+                            </Card>
+
+                            {/* Indicator 2 */}
+                             <Card className="flex-1 bg-card/50 backdrop-blur-sm border hover:border-secondary/50 transition-colors shadow-sm cursor-default group overflow-hidden relative">
+                                <div className="absolute inset-0 bg-secondary/5 translate-y-full group-hover:translate-y-0 transition-transform duration-300" />
+                                <CardContent className="p-4 flex flex-col justify-center h-full relative z-10">
+                                    <div className="flex items-center gap-3 mb-2">
+                                        <div className="p-2 rounded-full bg-secondary/10 text-secondary-foreground">
+                                            <Brain className="w-5 h-5" />
+                                        </div>
+                                        <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Secondary Indicator</span>
+                                    </div>
+                                    <span className="text-lg font-bold capitalize truncate" title={result.top_features?.[1]?.replace(/_/g, ' ')}>
+                                        {result.top_features?.[1] ? result.top_features[1].replace(/_/g, ' ') : 'Voice Jitter'}
+                                    </span>
+                                </CardContent>
+                            </Card>
+                         </div>
                     </div>
 
                     {/* 3. Detailed Model Breakdown - Premium Ring Charts */}
@@ -372,7 +412,7 @@ const QuestionnaireForm = () => {
                                             { subject: 'Jitter', A: (formData.jitter_local / 2) * 100 },
                                             { subject: 'Shimmer', A: (formData.shimmer_local / 1) * 100 },
                                         ]}
-                                        margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
+                                        margin={{ top: 20, right: 30, left: 20, bottom: 25 }}
                                     >
                                         <defs>
                                             <linearGradient id="barGradientFormatted" x1="0" y1="0" x2="0" y2="1">
@@ -385,7 +425,8 @@ const QuestionnaireForm = () => {
                                             dataKey="subject" 
                                             tick={{ fill: 'currentColor', fontSize: 12, fontWeight: 500 }} 
                                             axisLine={false} 
-                                            tickLine={false} 
+                                            tickLine={false}
+                                            label={{ value: 'Biomarker Category', position: 'insideBottom', offset: -10, fill: 'hsl(var(--muted-foreground))', fontSize: 12 }}
                                         />
                                         <YAxis 
                                             hide={false} 
@@ -393,6 +434,7 @@ const QuestionnaireForm = () => {
                                             tickLine={false} 
                                             tick={{ fill: 'currentColor', fontSize: 10 }}
                                             domain={[0, 100]}
+                                            label={{ value: 'Normalized Score', angle: -90, position: 'insideLeft', offset: 10, fill: 'hsl(var(--muted-foreground))', fontSize: 12 }}
                                         />
                                         <Tooltip 
                                             cursor={{ fill: 'hsl(var(--muted)/0.2)' }}
@@ -535,22 +577,22 @@ const QuestionnaireForm = () => {
                                          Comparative Health Benchmarks
                                      </span>
                                  </CardTitle>
-                                 <CardDescription>Statistical distribution relative to population norms</CardDescription>
+                                 <CardDescription>Statistical distribution via Box Plot Analysis</CardDescription>
                              </CardHeader>
                              <CardContent className="h-[400px]">
                                  <ResponsiveContainer width="100%" height="100%">
                                      <BarChart
                                          data={[
-                                             { name: 'Tremor', min: 10, q1: 25, median: 42, q3: 58, max: 75, fill: '#8b5cf6' },
-                                             { name: 'Rigidity', min: 15, q1: 35, median: 50, q3: 65, max: 85, fill: '#ec4899' },
-                                             { name: 'Bradykinesia', min: 5, q1: 20, median: 35, q3: 55, max: 70, fill: '#10b981' },
-                                             { name: 'Voice Jitter', min: 20, q1: 38, median: 55, q3: 72, max: 90, fill: '#f59e0b' },
-                                             { name: 'Cognitive', min: 30, q1: 45, median: 60, q3: 75, max: 95, fill: '#3b82f6' },
-                                             { name: 'Balance', min: 10, q1: 22, median: 38, q3: 52, max: 68, fill: '#ef4444' },
-                                             { name: 'Sleep', min: 25, q1: 40, median: 58, q3: 78, max: 92, fill: '#06b6d4' },
-                                             { name: 'Micrographia', min: 12, q1: 28, median: 45, q3: 62, max: 80, fill: '#84cc16' }
+                                             { name: 'Tremor', min: 10, q1: 25, median: 42, q3: 58, max: 75, fill: '#8b5cf6', points: [12, 15, 18, 22, 25, 28, 30, 35, 40, 42, 45, 48, 50, 52, 55, 60, 65, 70, 72, 74] },
+                                             { name: 'Rigidity', min: 15, q1: 35, median: 50, q3: 65, max: 85, fill: '#ec4899', points: [18, 22, 30, 35, 38, 42, 48, 50, 52, 55, 60, 62, 65, 68, 75, 80, 82, 84] },
+                                             { name: 'Bradykinesia', min: 5, q1: 20, median: 35, q3: 55, max: 70, fill: '#10b981', points: [6, 10, 15, 20, 25, 28, 30, 35, 38, 40, 45, 50, 55, 58, 62, 65, 68] },
+                                             { name: 'Voice Jitter', min: 20, q1: 38, median: 55, q3: 72, max: 90, fill: '#f59e0b', points: [22, 28, 35, 40, 45, 50, 55, 58, 60, 65, 70, 75, 80, 85, 88] },
+                                             { name: 'Cognitive', min: 30, q1: 45, median: 60, q3: 75, max: 95, fill: '#3b82f6', points: [32, 38, 45, 50, 55, 60, 62, 65, 70, 75, 80, 85, 90, 92, 94] },
+                                             { name: 'Balance', min: 10, q1: 22, median: 38, q3: 52, max: 68, fill: '#ef4444', points: [12, 18, 22, 28, 32, 38, 40, 42, 45, 50, 52, 58, 62, 65] },
+                                             { name: 'Sleep', min: 25, q1: 40, median: 58, q3: 78, max: 92, fill: '#06b6d4', points: [28, 35, 40, 48, 52, 58, 60, 65, 70, 78, 82, 85, 88, 90] },
+                                             { name: 'Micrographia', min: 12, q1: 28, median: 45, q3: 62, max: 80, fill: '#84cc16', points: [15, 22, 28, 35, 40, 45, 48, 55, 60, 62, 70, 75, 78] }
                                          ]}
-                                         margin={{ top: 20, right: 30, left: 20, bottom: 20 }}
+                                         margin={{ top: 20, right: 30, left: 40, bottom: 40 }}
                                      >
                                          <CartesianGrid strokeDasharray="3 3" vertical={false} strokeOpacity={0.1} />
                                          <XAxis 
@@ -559,55 +601,46 @@ const QuestionnaireForm = () => {
                                             tickLine={false} 
                                             tick={{ fill: 'currentColor', fontSize: 12, fontWeight: 500 }}
                                             interval={0}
+                                            label={{ value: 'Clinical Feature Metric', position: 'bottom', offset: 20, fill: 'hsl(var(--muted-foreground))', fontSize: 14 }}
                                          />
                                          <YAxis 
                                             axisLine={false} 
                                             tickLine={false} 
                                             tick={{ fill: 'muted' }} 
                                             domain={[0, 100]}
+                                            label={{ value: 'Percentile Score (0-100)', angle: -90, position: 'insideLeft', offset: -20, fill: 'hsl(var(--muted-foreground))', fontSize: 14 }}
                                          />
                                          <Tooltip 
-                                            cursor={{ fill: 'transparent' }}
+                                            cursor={{ fill: 'transparent' }} // Cleaner look without cursor bar
                                             content={({ active, payload }) => {
                                                 if (active && payload && payload.length) {
                                                     const d = payload[0].payload;
                                                     return (
-                                                        <div className="bg-popover text-popover-foreground p-3 rounded-xl shadow-lg border border-border">
-                                                            <p className="font-bold mb-1">{d.name}</p>
-                                                            <div className="text-xs space-y-1">
-                                                                <p>Max: {d.max}</p>
-                                                                <p>Q3: {d.q3}</p>
-                                                                <p className="font-bold">Median: {d.median}</p>
-                                                                <p>Q1: {d.q1}</p>
-                                                                <p>Min: {d.min}</p>
+                                                        <div className="bg-popover/95 backdrop-blur-sm text-popover-foreground p-4 rounded-xl shadow-xl border border-border/50 animate-in fade-in zoom-in-95 duration-200">
+                                                            <div className="flex items-center gap-2 mb-2 pb-2 border-b border-border/50">
+                                                                <div className="w-3 h-3 rounded-full" style={{ backgroundColor: d.fill }} />
+                                                                <p className="font-bold text-base">{d.name}</p>
+                                                            </div>
+                                                            <div className="space-y-1.5 text-sm">
+                                                                <div className="flex justify-between gap-8"><span className="text-muted-foreground">Range:</span> <span className="font-mono">{d.min} - {d.max}</span></div>
+                                                                <div className="flex justify-between gap-8"><span className="text-muted-foreground">IQR:</span> <span className="font-mono">{d.q1} - {d.q3}</span></div>
+                                                                <div className="flex justify-between gap-8"><span className="font-semibold text-foreground">Median:</span> <span className="font-mono font-bold">{d.median}</span></div>
                                                             </div>
                                                         </div>
                                                     );
                                                 }
                                                 return null;
                                             }}
-                                         />
+                                        />
                                          <Bar 
                                             dataKey="max" // Use max to determine height context for the custom shape
                                             shape={(props: any) => {
                                                 const { x, y, width, height, payload, fill } = props;
-                                                const { min, q1, median, q3, max } = payload;
-                                                // Assuming scale 0-100 mapped to height
-                                                // Since dataKey="max", the 'height' prop passed here corresponds to 'max' value in pixels relative to 0 line?
-                                                // Recharts custom shape on Bar: 
-                                                // y is the top position of the bar (value max).
-                                                // height is the height of the bar (0 to max).
-                                                // So we can convert values to pixels using scale k = height / max.
+                                                const { min, q1, median, q3, max, points } = payload;
                                                 
                                                 if (!max) return null;
+                                                // Calculate pixels per unit
                                                 const k = height / max;
-                                                
-                                                // Calculate y positions relative to the bottom of the bar (y + height)
-                                                // yVal = (y + height) - (val * k)
-                                                // Wait, 'y' is the top (value=max). 'y+height' is the bottom (value=0).
-                                                // Correct logic:
-                                                // y_min = (y + height) - (min * k)
-                                                // y_max = (y + height) - (max * k)  => which should be 'y'
                                                 
                                                 const bottom = y + height;
                                                 const yMin = bottom - (min * k);
@@ -615,21 +648,47 @@ const QuestionnaireForm = () => {
                                                 const yMedian = bottom - (median * k);
                                                 const yQ3 = bottom - (q3 * k);
                                                 const yMax = bottom - (max * k);
+                                                
+                                                // NARROWER BOX LOGIC
                                                 const center = x + width / 2;
+                                                const boxWidth = width * 0.35; // Make boxes narrower (35% of slot width)
+                                                const boxX = center - boxWidth / 2;
 
                                                 return (
                                                     <g>
                                                         {/* Whiskers */}
-                                                        <line x1={center} y1={yMin} x2={center} y2={yQ1} stroke={fill} strokeWidth={2} />
-                                                        <line x1={center} y1={yQ3} x2={center} y2={yMax} stroke={fill} strokeWidth={2} />
-                                                        <line x1={center - width/4} y1={yMin} x2={center + width/4} y2={yMin} stroke={fill} strokeWidth={2} />
-                                                        <line x1={center - width/4} y1={yMax} x2={center + width/4} y2={yMax} stroke={fill} strokeWidth={2} />
+                                                        <line x1={center} y1={yMin} x2={center} y2={yQ1} stroke={fill} strokeWidth={2} opacity={0.6} />
+                                                        <line x1={center} y1={yQ3} x2={center} y2={yMax} stroke={fill} strokeWidth={2} opacity={0.6} />
+                                                        <line x1={center - boxWidth/2} y1={yMin} x2={center + boxWidth/2} y2={yMin} stroke={fill} strokeWidth={2} opacity={0.6} />
+                                                        <line x1={center - boxWidth/2} y1={yMax} x2={center + boxWidth/2} y2={yMax} stroke={fill} strokeWidth={2} opacity={0.6} />
                                                         
                                                         {/* Box */}
-                                                        <rect x={x} y={yQ3} width={width} height={yQ1 - yQ3} stroke={fill} strokeWidth={2} fill={fill} fillOpacity={0.5} rx={4} />
+                                                        <rect x={boxX} y={yQ3} width={boxWidth} height={yQ1 - yQ3} stroke={fill} strokeWidth={2} fill={fill} fillOpacity={0.15} rx={3} />
                                                         
                                                         {/* Median */}
-                                                        <line x1={x} y1={yMedian} x2={x + width} y2={yMedian} stroke="#fff" strokeWidth={3} strokeLinecap="round" />
+                                                        <line x1={boxX} y1={yMedian} x2={boxX + boxWidth} y2={yMedian} stroke={fill} strokeWidth={3} strokeLinecap="round" />
+
+                                                        {/* Scatter Points - Jittered around center */}
+                                                        {points && points.map((val: number, i: number) => {
+                                                            const cy = bottom - (val * k);
+                                                            // Deterministic pseudo-random jitter 
+                                                            // Spread them slightly wider than the box for "cloud" effect, but keep centered
+                                                            const jitterAmount = (width * 0.6); // Allow points to use 60% of width
+                                                            const jitter = (((val * i * 13) % 100) / 100 - 0.5) * jitterAmount; 
+                                                            const cx = center + jitter;
+                                                            
+                                                            return (
+                                                                <circle 
+                                                                    key={i} 
+                                                                    cx={cx} 
+                                                                    cy={cy} 
+                                                                    r={2.5} 
+                                                                    fill={fill} 
+                                                                    fillOpacity={0.7} 
+                                                                    stroke="none"
+                                                                />
+                                                            );
+                                                        })}
                                                     </g>
                                                 );
                                             }}

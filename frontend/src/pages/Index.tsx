@@ -15,19 +15,19 @@ const Index = () => {
         <div className="container mx-auto px-6 relative z-10">
           <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-8 text-center">
             <div className="group p-8 bg-card/50 backdrop-blur-sm rounded-2xl shadow-sm border hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
-              <div className="text-5xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary to-blue-600 mb-2">98.5%</div>
+              <div className="text-5xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary to-blue-600 mb-2">96.37%</div>
               <div className="text-sm font-semibold tracking-wide uppercase text-muted-foreground">Detection Accuracy</div>
             </div>
             <div className="group p-8 bg-card/50 backdrop-blur-sm rounded-2xl shadow-sm border hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
-              <div className="text-5xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary to-blue-600 mb-2">&lt; 2s</div>
+              <div className="text-5xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary to-blue-600 mb-2">&lt; 3s</div>
               <div className="text-sm font-semibold tracking-wide uppercase text-muted-foreground">Processing Time</div>
             </div>
             <div className="group p-8 bg-card/50 backdrop-blur-sm rounded-2xl shadow-sm border hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
-              <div className="text-5xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary to-blue-600 mb-2">3</div>
-              <div className="text-sm font-semibold tracking-wide uppercase text-muted-foreground">ML Algorithms</div>
+              <div className="text-5xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary to-blue-600 mb-2">5</div>
+              <div className="text-sm font-semibold tracking-wide uppercase text-muted-foreground">Algorithms</div>
             </div>
             <div className="group p-8 bg-card/50 backdrop-blur-sm rounded-2xl shadow-sm border hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
-              <div className="text-5xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary to-blue-600 mb-2">10k+</div>
+              <div className="text-5xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary to-blue-600 mb-2">7k+</div>
               <div className="text-sm font-semibold tracking-wide uppercase text-muted-foreground">Data Points</div>
             </div>
           </div>
@@ -40,7 +40,7 @@ const Index = () => {
           <div className="text-center mb-20">
             <h2 className="text-4xl font-bold mb-4 tracking-tight">Comprehensive Analysis Platform</h2>
             <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-              Our platform combines multiple advanced technologies to provide the most accurate Parkinson's detection and staging.
+              Our platform serves as a supporting tool for early Parkinson’s screening, helping clinicians analyze patient patterns for better disease monitoring.
             </p>
           </div>
 
@@ -67,9 +67,9 @@ const Index = () => {
               <div className="h-20 w-20 bg-purple-50 dark:bg-purple-900/20 rounded-2xl rotate-3 flex items-center justify-center mb-8 text-purple-600 shadow-lg group-hover:rotate-6 transition-transform duration-300">
                 <Brain className="h-10 w-10" />
               </div>
-              <h3 className="text-2xl font-bold mb-4">Multi-Model AI</h3>
+              <h3 className="text-2xl font-bold mb-4">Ensemble Methodology</h3>
               <p className="text-muted-foreground leading-relaxed">
-                Advanced ensemble of Random Forest, SVM, and LSTM networks ensures scientifically robust results.
+                A multi-model ensemble of SVM, KNN, LSTM, and tree-based classifiers yields more scientifically robust outcomes.
               </p>
             </div>
           </div>
@@ -201,12 +201,12 @@ const Index = () => {
                   Get an instant assessment using our advanced machine learning models. Safe, secure, and private.
                 </p>
                 <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
-                    <Link to="/dashboard" className="w-full sm:w-auto">
+                    <Link to="/register" className="w-full sm:w-auto">
                         <Button size="lg" variant="outline" className="w-full sm:w-auto min-w-[200px] h-14 px-4 md:px-8 text-base md:text-lg bg-white/10 text-white border-white hover:bg-white/20">
                             Get Started
                         </Button>
                     </Link>
-                    <Link to="/prediction" className="w-full sm:w-auto">
+                    <Link to="/login" className="w-full sm:w-auto">
                       <Button size="lg" variant="secondary" className="w-full sm:w-auto min-w-[200px] shadow-lg h-14 px-4 md:px-8 text-base md:text-lg">
                         Start Assessment Now <ArrowRight className="ml-2 h-5 w-5" />
                       </Button>
