@@ -1,6 +1,6 @@
 # 🧠 Parkinson's Disease Prediction Platform
 
-An advanced AI-powered platform for early detection and stage classification of Parkinson's Disease using multi-modal analysis (clinical data, voice patterns, and handwriting).
+An advanced AI-powered platform for early prediction and stage classification of Parkinson's Disease using multi-modal analysis (clinical data, voice patterns, and handwriting).
 
 ## 🚀 Project Status
 
@@ -10,8 +10,8 @@ We have successfully built the core predictive engine and a modern responsive fr
 
 ### ✅ Completed Features
 
-- **Dual-Model AI Engine**: Integrated **Random Forest** and **Support Vector Machine (SVM)** models for robust prediction.
-    - *Confidence Scoring*: Real-time confidence probability display for both models.
+- **AI-Models Engine**: Integrated **Random Forest**, **Support Vector Machine (SVM)**, **Decision Trees** and **K-Nearest Neighbors (KNN)** models for robust prediction.
+    - *Confidence Scoring*: Real-time confidence probability display for all models.
     - *Auto-Loading*: Intelligent model loader (`joblib`/`pkl` support).
 - **Modern Frontend Interface**:
     - Responsive React + Vite application.
@@ -27,10 +27,12 @@ We have successfully built the core predictive engine and a modern responsive fr
 The following features are planned for the upcoming sprints:
 
 - [ ] **Advanced Voice Analysis**: Full integration of microphone capture and spectral analysis (Jitter/Shimmer extraction).
-- [ ] **Authentication System**: User accounts for patients and doctors (Login/Signup).
+- [ ] **Authentication System**: Secure Access for Verified Healthcare Professionals
 - [ ] **Patient Profiles**: History tracking and longitudinal analysis of symptoms.
+- [ ] **Real-time Prediction**: Real-time prediction of Parkinson's Disease using AI models.
+- [] **Integration of Deep Learning Models**: LSTM integration for time series analysis.
 - [ ] **Production Deployment**: containerization (Docker) and cloud hosting setup.
-- [ ] **Mobile Optimization**: Native mobile app wrappers.
+- [ ] **Mobile Optimization in Future**: Native mobile app wrappers.
 
 ## 🛠️ Project Structure
 
