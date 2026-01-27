@@ -54,13 +54,14 @@ export const api = {
     return await response.json();
   },
 
-  predict: async (features: PredictionFeatures): Promise<PredictionResponse> => {
+  predict: async (features: PredictionFeatures, userId?: string): Promise<PredictionResponse> => {
+    const payload = userId ? { features, user_id: userId } : { features };
     const response = await fetch(`${BASE_URL}/predict`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ features }),
+      body: JSON.stringify(payload),
     });
 
     if (!response.ok) {
@@ -71,9 +72,12 @@ export const api = {
     return await response.json();
   },
 
-  predictCsv: async (file: File): Promise<BatchPredictionResponse> => {
+  predictCsv: async (file: File, userId?: string): Promise<BatchPredictionResponse> => {
     const formData = new FormData();
     formData.append('file', file);
+    if (userId) {
+      formData.append('user_id', userId);
+    }
 
     const response = await fetch(`${BASE_URL}/predict_csv`, {
       method: 'POST',

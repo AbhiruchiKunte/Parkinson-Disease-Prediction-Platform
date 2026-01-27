@@ -2,6 +2,7 @@ import React, { useState, useCallback, useRef } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/contexts/AuthContext';
 import { Upload, X, FileText, AlertCircle, CheckCircle, Loader2, FileSpreadsheet, Activity } from 'lucide-react';
 import Papa from 'papaparse';
 import { api, BatchPredictionResponse } from '@/lib/api';
@@ -19,6 +20,7 @@ interface CsvData {
 
 const CsvUpload = () => {
     const { toast } = useToast();
+    const { user } = useAuth(); // Get user
     const [isDragActive, setIsDragActive] = useState(false);
     const [csvData, setCsvData] = useState<CsvData | null>(null);
     const [isUploading, setIsUploading] = useState(false);
@@ -118,7 +120,7 @@ const CsvUpload = () => {
       setIsProcessing(true);
       
       try {
-        const response = await api.predictCsv(selectedFile);
+        const response = await api.predictCsv(selectedFile, user?.id); // Pass user.id
         setBatchResults(response);
         
         toast({
@@ -223,7 +225,7 @@ const CsvUpload = () => {
                         id="csv-upload"
                         ref={fileInputRef}
                       />
-                      <Button asChild variant="outline">
+                      <Button asChild className="bg-gradient-hero text-white shadow-medical hover:opacity-90 transition-all">
                         <label htmlFor="csv-upload" className="cursor-pointer">
                           Choose File
                         </label>

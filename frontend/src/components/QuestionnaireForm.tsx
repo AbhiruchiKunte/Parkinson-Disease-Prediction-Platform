@@ -6,6 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Slider } from '@/components/ui/slider';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/contexts/AuthContext'; // Import useAuth
 import { Activity, User, HandMetal, Mic } from 'lucide-react';
 import { api, PredictionResponse } from '@/lib/api';
 import { Brain } from 'lucide-react';
@@ -38,6 +39,7 @@ const INITIAL_STATE: FormData = {
 
 const QuestionnaireForm = () => {
   const { toast } = useToast();
+  const { user } = useAuth(); // Get user from AuthContext
   const [formData, setFormData] = useState<FormData>(INITIAL_STATE);
   const [isLoading, setIsLoading] = useState(false);
   const [result, setResult] = useState<PredictionResponse | null>(null);
@@ -67,7 +69,7 @@ const QuestionnaireForm = () => {
         rigidity: formData.rigidity
       };
 
-      const response = await api.predict(apiData);
+      const response = await api.predict(apiData, user?.id); // Pass user.id
       setResult(response);
       
       toast({
@@ -928,7 +930,7 @@ const QuestionnaireForm = () => {
                   type="submit" 
                   size="lg" 
                   disabled={isLoading}
-                  className="w-full shadow-medical"
+                  className="w-full max-w-sm mx-auto flex bg-gradient-hero shadow-lg hover:shadow-xl hover:scale-[1.02] transition-all duration-200"
                 >
                   {isLoading ? 'Analyzing...' : 'Analyze Assessment'}
                 </Button>

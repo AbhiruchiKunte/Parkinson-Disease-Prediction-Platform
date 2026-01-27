@@ -1,0 +1,20 @@
+from flask import Blueprint, request
+from controllers.prediction_controller import predict_single, predict_batch, predict_audio_file, get_model_info
+
+prediction_bp = Blueprint('prediction_bp', __name__)
+
+@prediction_bp.route('/model_info', methods=['GET'])
+def model_info_route():
+    return get_model_info()
+
+@prediction_bp.route('/predict', methods=['POST'])
+def predict_route():
+    return predict_single(request.get_json())
+
+@prediction_bp.route('/predict_csv', methods=['POST'])
+def predict_csv_route():
+    return predict_batch(request)
+
+@prediction_bp.route('/predict_audio', methods=['POST'])
+def predict_audio_route():
+    return predict_audio_file(request)
