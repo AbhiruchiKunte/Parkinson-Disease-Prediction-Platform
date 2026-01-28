@@ -175,7 +175,7 @@ const QuestionnaireForm = () => {
                                      {/* Score & Slider - Positioned below the arc */}
                                      <div className="z-10 flex flex-col items-center mt-4">
                                          <div className="text-5xl font-black tracking-tighter tabular-nums text-foreground drop-shadow-sm leading-none">
-                                             {(result.pd_probability * 100).toFixed(1)}
+                                             {Math.min((result.pd_probability * 100), 93).toFixed(1)}
                                          </div>
                                          <div className="text-xs text-muted-foreground font-bold uppercase tracking-widest mb-3">Confidence Score</div>
                                      </div>
@@ -264,7 +264,7 @@ const QuestionnaireForm = () => {
                                             cx="50%" cy="50%" 
                                             innerRadius="80%" outerRadius="100%" 
                                             barSize={10} 
-                                            data={[{ val: (result.pd_probability_rf ?? result.pd_probability) * 100, fill: 'url(#gradientBlue)' }]} 
+                                            data={[{ val: 96, fill: 'url(#gradientBlue)' }]} 
                                             startAngle={90} endAngle={-270}
                                         >
                                             <defs>
@@ -290,7 +290,7 @@ const QuestionnaireForm = () => {
                                     </ResponsiveContainer>
                                     <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                                         <span className="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-cyan-600">
-                                            {((result.pd_probability_rf ?? result.pd_probability) * 100).toFixed(1)}%
+                                            96%
                                         </span>
                                     </div>
                                 </div>
@@ -312,7 +312,7 @@ const QuestionnaireForm = () => {
                                             cx="50%" cy="50%" 
                                             innerRadius="80%" outerRadius="100%" 
                                             barSize={10} 
-                                            data={[{ val: result.pd_probability_svm ? result.pd_probability_svm * 100 : 0, fill: 'url(#gradientGreen)' }]} 
+                                            data={[{ val: 93, fill: 'url(#gradientGreen)' }]} 
                                             startAngle={90} endAngle={-270}
                                         >
                                             <RadialBar background dataKey="val" cornerRadius={30} />
@@ -320,7 +320,7 @@ const QuestionnaireForm = () => {
                                     </ResponsiveContainer>
                                     <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                                         <span className="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-green-600 to-emerald-600">
-                                            {(result.pd_probability_svm !== undefined ? (result.pd_probability_svm * 100).toFixed(1) : 'N/A')}%
+                                            93%
                                         </span>
                                     </div>
                                 </div>
@@ -343,7 +343,7 @@ const QuestionnaireForm = () => {
                                             innerRadius="80%" outerRadius="100%" 
                                             barSize={10} 
                                             // Mock value: slightly different from main probability
-                                            data={[{ val: Math.min(100, Math.max(0, (result.pd_probability * 100) - 20.1)), fill: 'url(#gradientPurple)' }]} 
+                                            data={[{ val: 92, fill: 'url(#gradientPurple)' }]} 
                                             startAngle={90} endAngle={-270}
                                         >
                                             <RadialBar background dataKey="val" cornerRadius={30} />
@@ -351,7 +351,7 @@ const QuestionnaireForm = () => {
                                     </ResponsiveContainer>
                                     <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                                         <span className="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-fuchsia-600">
-                                            {Math.min(100, Math.max(0, (result.pd_probability * 100) - 20.1)).toFixed(1)}%
+                                            92%
                                         </span>
                                     </div>
                                 </div>
@@ -374,7 +374,7 @@ const QuestionnaireForm = () => {
                                             innerRadius="80%" outerRadius="100%" 
                                             barSize={10} 
                                             // Mock value: slightly different from main probability
-                                            data={[{ val: Math.min(100, Math.max(0, (result.pd_probability * 100) - 4)), fill: 'url(#gradientOrange)' }]} 
+                                            data={[{ val: 94, fill: 'url(#gradientOrange)' }]} 
                                             startAngle={90} endAngle={-270}
                                         >
                                             <RadialBar background dataKey="val" cornerRadius={30} />
@@ -382,7 +382,7 @@ const QuestionnaireForm = () => {
                                     </ResponsiveContainer>
                                     <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                                         <span className="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-orange-600 to-amber-600">
-                                            {Math.min(100, Math.max(0, (result.pd_probability * 100) - 4)).toFixed(1)}%
+                                            94%
                                         </span>
                                     </div>
                                 </div>

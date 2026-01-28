@@ -30,7 +30,7 @@ The following features are planned for the upcoming sprints:
 - [ ] **Authentication System**: Secure Access for Verified Healthcare Professionals
 - [ ] **Patient Profiles**: History tracking and longitudinal analysis of symptoms.
 - [ ] **Real-time Prediction**: Real-time prediction of Parkinson's Disease using AI models.
-- [] **Integration of Deep Learning Models**: LSTM integration for time series analysis.
+- [ ] **Integration of Deep Learning Models**: LSTM integration for time series analysis.
 - [ ] **Production Deployment**: containerization (Docker) and cloud hosting setup.
 - [ ] **Mobile Optimization in Future**: Native mobile app wrappers.
 
