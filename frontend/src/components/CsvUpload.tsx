@@ -534,9 +534,7 @@ const CsvUpload = () => {
                                                      const val = p.features?.jitter_local || 0;
                                                      return val >= binStart && val < binStart + 0.001;
                                                  }).length;
-                                                 // Added static values for attractive distribution
-                                                 const staticValue = [2, 5, 8, 12, 16, 14, 10, 7, 5, 3, 2, 1, 1, 0, 0][i] || 0;
-                                                 return { x: binStart.toFixed(3), y: realCount + staticValue }; 
+                                                 return { x: binStart.toFixed(3), y: realCount }; 
                                              })}
                                              margin={{ top: 20, right: 30, left: 0, bottom: 5 }}
                                          >

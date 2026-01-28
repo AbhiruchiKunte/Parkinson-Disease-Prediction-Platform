@@ -1,26 +1,21 @@
-const BASE_URL = 'http://localhost:5000';
+import axios from 'axios';
 
-export interface PredictionFeatures {
-  age: number;
-  tremor_score: number;
-  handwriting_score: number;
-  jitter_local: number;
-  shimmer_local: number;
-  // Included for future use but backend might ignore
-  bradykinesia?: number;
-  rigidity?: number;
-}
+const API_Base = 'http://127.0.0.1:5000';
 
 export interface PredictionResponse {
   pd_probability: number;
-  pd_probability_rf?: number;
-  pd_probability_svm?: number;
+  pd_probability_rf: number;
+  pd_probability_svm: number;
+  pd_probability_knn: number;
+  pd_probability_dt: number;
   stage_probs: {
     early: number;
     mid: number;
     late: number;
   };
-  top_features: string[];
+  top_features: { name: string; value: number }[];
+  prediction_status: string;
+  db_status?: string;
 }
 
 export interface BatchPredictionResponse {
@@ -30,65 +25,62 @@ export interface BatchPredictionResponse {
   failed_predictions: number;
 }
 
-export interface ModelInfo {
-  model_loaded: boolean;
-  required_features: string[];
-  feature_descriptions: Record<string, string>;
-}
-
 export const api = {
-  healthCheck: async (): Promise<{ status: string; model_loaded: boolean }> => {
+  predict: async (data: any, userId?: string) => {
     try {
-      const response = await fetch(`${BASE_URL}/health`);
-      if (!response.ok) throw new Error('Health check failed');
-      return await response.json();
+      const payload = userId ? { features: data, user_id: userId } : { features: data };
+      const response = await axios.post(`${API_Base}/predict`, payload);
+      return response.data;
     } catch (error) {
-      console.error('API Health Check Error:', error);
+      console.error("Prediction error:", error);
       throw error;
     }
   },
 
-  getModelInfo: async (): Promise<ModelInfo> => {
-    const response = await fetch(`${BASE_URL}/model_info`);
-    if (!response.ok) throw new Error('Failed to fetch model info');
-    return await response.json();
+  predictCsv: async (file: File, userId?: string) => {
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      if (userId) {
+        formData.append('user_id', userId);
+      }
+      
+      const response = await axios.post(`${API_Base}/predict_csv`, formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+      return response.data;
+    } catch (error) {
+       console.error("Batch prediction error:", error);
+       throw error;
+    }
   },
 
-  predict: async (features: PredictionFeatures, userId?: string): Promise<PredictionResponse> => {
-    const payload = userId ? { features, user_id: userId } : { features };
-    const response = await fetch(`${BASE_URL}/predict`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(payload),
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.error || 'Prediction failed');
+  predictAudio: async (file: File) => {
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      
+      const response = await axios.post(`${API_Base}/predict_audio`, formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+      return response.data;
+    } catch (error) {
+      console.error("Audio analysis error:", error);
+      throw error;
     }
-
-    return await response.json();
   },
 
-  predictCsv: async (file: File, userId?: string): Promise<BatchPredictionResponse> => {
-    const formData = new FormData();
-    formData.append('file', file);
-    if (userId) {
-      formData.append('user_id', userId);
+  getBenchmarks: async () => {
+    try {
+      const response = await axios.get(`${API_Base}/benchmarks`);
+      return response.data;
+    } catch (error) {
+      console.error("Benchmarks error:", error);
+      return []; // Return empty array on error
     }
-
-    const response = await fetch(`${BASE_URL}/predict_csv`, {
-      method: 'POST',
-      body: formData,
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.error || 'Batch prediction failed');
-    }
-
-    return await response.json();
-  },
+  }
 };

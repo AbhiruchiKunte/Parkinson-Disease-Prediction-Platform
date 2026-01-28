@@ -1,5 +1,5 @@
 from flask import Blueprint, request
-from controllers.prediction_controller import predict_single, predict_batch, predict_audio_file, get_model_info
+from controllers.prediction_controller import predict_single, predict_batch, predict_audio_file, get_model_info, get_benchmarks
 
 prediction_bp = Blueprint('prediction_bp', __name__)
 
@@ -18,3 +18,7 @@ def predict_csv_route():
 @prediction_bp.route('/predict_audio', methods=['POST'])
 def predict_audio_route():
     return predict_audio_file(request)
+
+@prediction_bp.route('/benchmarks', methods=['GET'])
+def benchmarks_route():
+    return get_benchmarks()

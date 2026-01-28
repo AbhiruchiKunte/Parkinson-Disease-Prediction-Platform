@@ -1,5 +1,6 @@
 from flask import jsonify
 import pandas as pd
+from .batch_helper import process_csv_batch
 import numpy as np
 import os
 import uuid
@@ -73,14 +74,19 @@ def predict_single(data):
                     "pd_probability": result.get('pd_probability'),
                     "pd_probability_rf": result.get('pd_probability_rf'),
                     "pd_probability_svm": result.get('pd_probability_svm'),
+                    "pd_probability_knn": result.get('pd_probability_knn'),
+                    "pd_probability_dt": result.get('pd_probability_dt'),
                     "prediction_status": "High Risk" if result.get('pd_probability') > 0.5 else "Low Risk",
                     "top_features": result.get('top_features', [])
                 }
                 supabase_admin.from_("clinical_assessments").insert(db_record).execute()
                 logger.info(f"Clinical assessment saved for user {user_id}")
+                result['db_status'] = 'saved'
             except Exception as db_err:
                 logger.error(f"Failed to save assessment to DB: {db_err}")
-                # Don't fail the request if DB save fails, but maybe warn?
+                result['db_status'] = f'failed: {str(db_err)}'
+        else:
+            result['db_status'] = 'skipped (no user_id)'
         
         return jsonify(result), 200
         
@@ -207,4 +213,103 @@ def predict_audio_file(request):
                 os.remove(temp_path)
             except Exception:
                 pass
+        return jsonify({"error": str(e)}), 500
+
+def get_benchmarks():
+    """
+    Retrieve aggregate statistics for clinical features from the database
+    to populate the Comparative Health Benchmarks box plot.
+    """
+    try:
+        if not supabase_admin:
+            # Fallback mock data if DB not connected
+            return jsonify({"error": "Database connection unavailable"}), 503
+
+        # Fetch all relevant columns
+        response = supabase_admin.from_("clinical_assessments").select(
+            "tremor_score, rigidity, bradykinesia, jitter_local, shimmer_local, handwriting_score"
+        ).execute()
+        
+        data = response.data
+        if not data:
+             return jsonify({"error": "No historical data available"}), 404
+
+        df = pd.DataFrame(data)
+        
+        # Calculate stats for each feature
+        benchmarks = []
+        
+        # Map DB columns to Frontend display names
+        feature_map = {
+            'tremor_score': 'Tremor',
+            'rigidity': 'Rigidity',
+            'bradykinesia': 'Bradykinesia',
+            'jitter_local': 'Voice Jitter',
+            'shimmer_local': 'Voice Shimmer', # Added Shimmer
+            'handwriting_score': 'Micrographia'
+        }
+        
+        for col, display_name in feature_map.items():
+            if col in df.columns:
+                series = df[col]
+                # Filter out nulls/zeros if needed, preserving valid 0s (symptom free)
+                # Assuming data is clean.
+                
+                # Calculate quartiles
+                stats = series.describe(percentiles=[0.25, 0.5, 0.75])
+                
+                # normalize jitter/shimmer for display (if stored as absolute 0-1, multiply by 100 for graph?)
+                # The graph expects 0-100 scale.
+                # Tremor/Rigidity are 0-4. Need to normalize to 0-100?
+                # The graph axis says "Percentile Score (0-100)". 
+                # If existing graph logic maps 0-4 to 0-100, we should do same.
+                # Let's just return raw stats and let frontend normalize, OR normalize here.
+                # Frontend logic for BarChart was: (score / 4) * 100 for motor.
+                
+                scale_factor = 1
+                if col in ['tremor_score', 'rigidity', 'bradykinesia', 'handwriting_score']:
+                    scale_factor = (100 / 4)
+                elif col in ['jitter_local', 'shimmer_local']:
+                    # Assuming stored as absolute (0-1), map to 0-100
+                    scale_factor = 1000 # Jitter is usually < 0.01 (1%), let's say max is 1% -> 100 on graph?? 
+                    # Wait, previous frontend code did: (jitter / 2) * 100. 
+                    # If jitter is 0.01 (1%), result is (0.01/2)*100 = 0.5. Too small.
+                    # Let's stick to returning raw Describe values and frontend handles scaling.
+                    # Actually, for boxplot it's easier to return "plot ready" values.
+                    pass 
+
+                # Re-calculating with normalization for the 0-100 scale visualization
+                # For simplicity, let's normalize to 0-100 range based on typical max values.
+                # Tremor/Rigidity/Brady/Handwriting: Max 4
+                # Jitter: typical max ~0.01 (1%). Let's map 0.02 to 100?
+                # Shimmer: typical max ~0.05 (5%).
+                
+                # Let's use a simpler approach: Return the raw distribution, frontend decides usage.
+                # Actually user wants "Composition of risk contributors" which is different.
+                # This is for "Comparative Health Benchmarks".
+                
+                # Let's just normalize to 0-100 for the generic axis.
+                def normalize(x, col_name):
+                    if col_name in ['tremor_score', 'rigidity', 'bradykinesia', 'handwriting_score']:
+                         return min(100, (x / 4) * 100)
+                    if col_name == 'jitter_local':
+                        return min(100, x * 100 * 50) # Scale up small absolute values
+                    if col_name == 'shimmer_local':
+                        return min(100, x * 100 * 20)
+                    return x
+
+                benchmarks.append({
+                    "name": display_name,
+                    "min": normalize(series.min(), col),
+                    "q1": normalize(series.quantile(0.25), col),
+                    "median": normalize(series.median(), col),
+                    "q3": normalize(series.quantile(0.75), col),
+                    "max": normalize(series.max(), col),
+                    "points": [normalize(x, col) for x in series.sample(n=min(20, len(series))).tolist()] # Random sample for dots
+                })
+                
+        return jsonify(benchmarks), 200
+
+    except Exception as e:
+        logger.error(f"Benchmark error: {str(e)}")
         return jsonify({"error": str(e)}), 500
