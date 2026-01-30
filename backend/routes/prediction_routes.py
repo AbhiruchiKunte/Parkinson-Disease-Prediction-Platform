@@ -1,7 +1,11 @@
 from flask import Blueprint, request
-from controllers.prediction_controller import predict_single, predict_batch, predict_audio_file, get_model_info, get_benchmarks
+from controllers.prediction_controller import predict_single, predict_batch, predict_audio_file, get_model_info, get_benchmarks, parse_file_data
 
 prediction_bp = Blueprint('prediction_bp', __name__)
+
+@prediction_bp.route('/parse_file', methods=['POST'])
+def parse_file_route():
+    return parse_file_data(request)
 
 @prediction_bp.route('/model_info', methods=['GET'])
 def model_info_route():

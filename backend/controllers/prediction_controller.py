@@ -1,6 +1,65 @@
 from flask import jsonify
 import pandas as pd
-from .batch_helper import process_csv_batch
+from .batch_helper import process_csv_batch, parse_docx_to_df, parse_pdf_to_df, parse_doc_to_df
+
+def parse_file_data(request):
+    """
+    Parse a file and return the raw data (headers and rows) for preview.
+    """
+    try:
+        if 'file' not in request.files:
+            return jsonify({"error": "No file provided"}), 400
+        
+        file = request.files['file']
+        if file.filename == '':
+            return jsonify({"error": "No selected file"}), 400
+            
+        filename = file.filename.lower()
+        
+        try:
+             # Reuse logic from predict_batch
+            if filename.endswith('.csv'):
+                df = pd.read_csv(file)
+            elif filename.endswith('.json'):
+                df = pd.read_json(file)
+            elif filename.endswith(('.xls', '.xlsx')):
+                df = pd.read_excel(file)
+            elif filename.endswith('.docx'):
+                df = parse_docx_to_df(file)
+            elif filename.endswith('.pdf'):
+                df = parse_pdf_to_df(file)
+            elif filename.endswith('.doc'):
+                df = parse_doc_to_df(file)
+            else:
+                return jsonify({"error": "Unsupported file format."}), 400
+            
+            if df.empty:
+                 return jsonify({"headers": [], "data": [], "count": 0}), 200
+
+            # Replace NaNs with None/null for JSON serialization
+            df = df.replace({np.nan: None})
+            
+            # Limit rows for preview if too large (e.g. 100 rows)
+            # But user might want to know total count. 
+            # Let's send up to 50 rows for preview, but return full count.
+            preview_df = df.head(50)
+            
+            data = preview_df.to_dict(orient='records')
+            headers = list(df.columns)
+            
+            return jsonify({
+                "headers": headers, 
+                "data": data, 
+                "count": len(df)
+            }), 200
+
+        except Exception as e:
+            logger.error(f"Parse error: {str(e)}")
+            return jsonify({"error": f"Failed to parse file: {str(e)}"}), 400
+
+    except Exception as e:
+        logger.error(f"Parse endpoint error: {str(e)}")
+        return jsonify({"error": "Error processing file"}), 500
 import numpy as np
 import os
 import uuid
@@ -114,6 +173,8 @@ def predict_batch(request):
         filename = file.filename.lower()
         
         # Determine file type and load data
+
+        # Determine file type and load data
         try:
             if filename.endswith('.csv'):
                 df = pd.read_csv(file)
@@ -121,10 +182,20 @@ def predict_batch(request):
                 df = pd.read_json(file)
             elif filename.endswith(('.xls', '.xlsx')):
                 df = pd.read_excel(file)
-            elif filename.endswith(('.doc', '.docx')):
-                return jsonify({"error": "Word documents are not currently supported for automated data extraction."}), 400
+            elif filename.endswith('.docx'):
+                df = parse_docx_to_df(file)
+            elif filename.endswith('.pdf'):
+                df = parse_pdf_to_df(file)
+            elif filename.endswith('.doc'):
+                df = parse_doc_to_df(file)
+                if df.empty:
+                     return jsonify({"error": "Could not extract data from .doc file. Please ensure it contains clear text or save as .docx."}), 400
             else:
                 return jsonify({"error": "Unsupported file format."}), 400
+            
+            if df.empty:
+                 return jsonify({"error": "No data found in file"}), 400
+                 
         except Exception as e:
             logger.error(f"Error parsing file {filename}: {str(e)}")
             return jsonify({"error": f"Failed to parse file: {str(e)}"}), 400
