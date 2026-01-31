@@ -5,6 +5,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate, Outlet } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
+import { ThemeProvider } from "@/contexts/ThemeContext";
 import Layout from "./components/layout/Layout";
 import Index from "./pages/Index";
 import Dashboard from "./pages/Dashboard";
@@ -36,31 +37,33 @@ const App = () => (
       <Toaster />
       <Sonner />
       <AuthProvider>
-        <BrowserRouter>
-          <Routes>
-            {/* Public Routes - No Layout for independent pages */}
-            <Route path="/login" element={<LoginPage />} />
-            <Route path="/register" element={<RegisterPage />} />
-            <Route path="/forgot-password" element={<ForgotPassword />} />
+        <ThemeProvider>
+          <BrowserRouter>
+            <Routes>
+              {/* Public Routes - No Layout for independent pages */}
+              <Route path="/login" element={<LoginPage />} />
+              <Route path="/register" element={<RegisterPage />} />
+              <Route path="/forgot-password" element={<ForgotPassword />} />
 
-            {/* Layout Routes */}
-            <Route element={<Layout />}>
-              <Route path="/" element={<Index />} />
-              <Route path="/about" element={<About />} />
-              
-              {/* Protected Routes */}
-              <Route element={<ProtectedRoute />}>
-                <Route path="/dashboard" element={<Dashboard />} />
-                <Route path="/prediction" element={<Prediction />} />
-                <Route path="/voice-analysis" element={<VoiceAnalysis />} />
-                <Route path="/analytics" element={<Analytics />} />
-                <Route path="/settings" element={<Settings />} />
+              {/* Layout Routes */}
+              <Route element={<Layout />}>
+                <Route path="/" element={<Index />} />
+                <Route path="/about" element={<About />} />
+                
+                {/* Protected Routes */}
+                <Route element={<ProtectedRoute />}>
+                  <Route path="/dashboard" element={<Dashboard />} />
+                  <Route path="/prediction" element={<Prediction />} />
+                  <Route path="/voice-analysis" element={<VoiceAnalysis />} />
+                  <Route path="/analytics" element={<Analytics />} />
+                  <Route path="/settings" element={<Settings />} />
+                </Route>
+
+                <Route path="*" element={<NotFound />} />
               </Route>
-
-              <Route path="*" element={<NotFound />} />
-            </Route>
-          </Routes>
-        </BrowserRouter>
+            </Routes>
+          </BrowserRouter>
+        </ThemeProvider>
       </AuthProvider>
     </TooltipProvider>
   </QueryClientProvider>

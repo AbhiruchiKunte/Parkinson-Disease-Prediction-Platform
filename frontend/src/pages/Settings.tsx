@@ -7,9 +7,11 @@ import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { User, Bell, Shield, Palette, Mail, Lock, LogOut, Moon, Sun, Smartphone, Pencil, Check, X, Camera, Eye, EyeOff, Copy, Link as LinkIcon } from 'lucide-react';
+import { User, Bell, Shield, Palette, Mail, Lock, LogOut, Moon, Sun, Smartphone, Pencil, Check, X, Camera, Eye, EyeOff, Copy, Link as LinkIcon, Type, Rat, Eye as EyeIcon, Stethoscope, Database, Share2, HelpCircle, Activity, FileText, Download, Cloud } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
+import { useTheme } from '@/contexts/ThemeContext';
 
 const Settings = () => {
     const [loading, setLoading] = useState(false);
@@ -21,6 +23,15 @@ const Settings = () => {
     const [isEditing, setIsEditing] = useState(false);
     const [avatarUrl, setAvatarUrl] = useState('');
     
+    // Theme Context
+    const { 
+        theme, setTheme, 
+        fontSize, setFontSize, 
+        fontStyle, setFontStyle,
+        reducedMotion, setReducedMotion, 
+        highContrast, setHighContrast 
+    } = useTheme();
+
     // Avatar Dialog State
     const [isAvatarModalOpen, setIsAvatarModalOpen] = useState(false);
     const [tempAvatarUrl, setTempAvatarUrl] = useState('');
@@ -181,10 +192,22 @@ const Settings = () => {
                                 <User className="w-5 h-5 mr-3" /> Profile
                             </TabsTrigger>
                             <TabsTrigger 
+                                value="security" 
+                                className="w-full justify-start px-4 py-3 h-auto text-base font-medium data-[state=active]:bg-secondary/50 data-[state=active]:text-foreground rounded-xl transition-all"
+                            >
+                                <Shield className="w-5 h-5 mr-3" /> Security
+                            </TabsTrigger>
+                            <TabsTrigger 
                                 value="appearance" 
                                 className="w-full justify-start px-4 py-3 h-auto text-base font-medium data-[state=active]:bg-secondary/50 data-[state=active]:text-foreground rounded-xl transition-all"
                             >
                                 <Palette className="w-5 h-5 mr-3" /> Appearance
+                            </TabsTrigger>
+                            <TabsTrigger 
+                                value="integrations" 
+                                className="w-full justify-start px-4 py-3 h-auto text-base font-medium data-[state=active]:bg-secondary/50 data-[state=active]:text-foreground rounded-xl transition-all"
+                            >
+                                <Share2 className="w-5 h-5 mr-3" /> Integrations
                             </TabsTrigger>
                             <TabsTrigger 
                                 value="notifications" 
@@ -193,10 +216,22 @@ const Settings = () => {
                                 <Bell className="w-5 h-5 mr-3" /> Notifications
                             </TabsTrigger>
                             <TabsTrigger 
-                                value="security" 
+                                value="clinical" 
                                 className="w-full justify-start px-4 py-3 h-auto text-base font-medium data-[state=active]:bg-secondary/50 data-[state=active]:text-foreground rounded-xl transition-all"
                             >
-                                <Shield className="w-5 h-5 mr-3" /> Security
+                                <Stethoscope className="w-5 h-5 mr-3" /> Clinical Preference
+                            </TabsTrigger>
+                            <TabsTrigger 
+                                value="data" 
+                                className="w-full justify-start px-4 py-3 h-auto text-base font-medium data-[state=active]:bg-secondary/50 data-[state=active]:text-foreground rounded-xl transition-all"
+                            >
+                                <Database className="w-5 h-5 mr-3" /> Data & Privacy
+                            </TabsTrigger>
+                            <TabsTrigger 
+                                value="support" 
+                                className="w-full justify-start px-4 py-3 h-auto text-base font-medium data-[state=active]:bg-secondary/50 data-[state=active]:text-foreground rounded-xl transition-all"
+                            >
+                                <HelpCircle className="w-5 h-5 mr-3" /> Help & Support
                             </TabsTrigger>
                         </TabsList>
                     </aside>
@@ -316,28 +351,147 @@ const Settings = () => {
                                     <CardTitle>Appearance</CardTitle>
                                     <CardDescription>Customize the look and feel of the application.</CardDescription>
                                 </CardHeader>
-                                <CardContent className="space-y-6">
+                                <CardContent className="space-y-8">
+                                    {/* Theme Selection */}
                                     <div className="space-y-4">
-                                        <Label>Theme Preference</Label>
+                                        <Label className="text-base">Theme Preference</Label>
                                         <div className="grid grid-cols-3 gap-4">
-                                            <div className="cursor-pointer space-y-2">
-                                                <div className="h-24 rounded-lg bg-slate-100 border-2 border-primary shadow-sm flex items-center justify-center">
-                                                    <Sun className="h-8 w-8 text-orange-500" />
+                                            <div 
+                                                onClick={() => setTheme('light')}
+                                                className={`cursor-pointer space-y-2 p-2 rounded-xl transition-all ${theme === 'light' ? 'ring-2 ring-primary ring-offset-2 bg-secondary/50' : 'hover:bg-secondary/30'}`}
+                                            >
+                                                <div className="h-24 rounded-lg bg-slate-100 border-2 border-slate-200 shadow-sm flex items-center justify-center relative overflow-hidden group">
+                                                    <div className="absolute top-0 right-0 p-2 bg-white rounded-bl-lg shadow-sm">
+                                                        <div className="w-2 h-2 rounded-full bg-orange-400"></div>
+                                                    </div>
+                                                    <Sun className={`h-8 w-8 text-orange-500 transition-transform ${theme === 'light' ? 'scale-110' : 'group-hover:scale-110'}`} />
                                                 </div>
-                                                <div className="text-center text-sm font-medium">Light</div>
-                                            </div>
-                                            <div className="cursor-pointer space-y-2">
-                                                <div className="h-24 rounded-lg bg-slate-950 border-2 border-transparent hover:border-primary/50 transition-all flex items-center justify-center">
-                                                    <Moon className="h-8 w-8 text-blue-400" />
+                                                <div className="text-center text-sm font-medium flex items-center justify-center gap-2">
+                                                    Light
+                                                    {theme === 'light' && <Check className="w-3 h-3 text-primary" />}
                                                 </div>
-                                                <div className="text-center text-sm font-medium">Dark</div>
                                             </div>
-                                            <div className="cursor-pointer space-y-2">
-                                                <div className="h-24 rounded-lg bg-slate-200 border-2 border-transparent hover:border-primary/50 transition-all flex items-center justify-center">
-                                                    <Smartphone className="h-8 w-8 text-slate-600" />
+                                            <div 
+                                                onClick={() => setTheme('dark')}
+                                                className={`cursor-pointer space-y-2 p-2 rounded-xl transition-all ${theme === 'dark' ? 'ring-2 ring-primary ring-offset-2 bg-secondary/50' : 'hover:bg-secondary/30'}`}
+                                            >
+                                                <div className="h-24 rounded-lg bg-slate-950 border-2 border-slate-800 shadow-sm flex items-center justify-center relative overflow-hidden group">
+                                                    <div className="absolute top-0 right-0 p-2 bg-slate-800 rounded-bl-lg shadow-sm">
+                                                        <div className="w-2 h-2 rounded-full bg-blue-400"></div>
+                                                    </div>
+                                                    <Moon className={`h-8 w-8 text-blue-400 transition-transform ${theme === 'dark' ? 'scale-110' : 'group-hover:scale-110'}`} />
                                                 </div>
-                                                <div className="text-center text-sm font-medium">System</div>
+                                                <div className="text-center text-sm font-medium flex items-center justify-center gap-2">
+                                                    Dark
+                                                    {theme === 'dark' && <Check className="w-3 h-3 text-primary" />}
+                                                </div>
                                             </div>
+                                            <div 
+                                                onClick={() => setTheme('system')}
+                                                className={`cursor-pointer space-y-2 p-2 rounded-xl transition-all ${theme === 'system' ? 'ring-2 ring-primary ring-offset-2 bg-secondary/50' : 'hover:bg-secondary/30'}`}
+                                            >
+                                                <div className="h-24 rounded-lg bg-gradient-to-br from-slate-100 to-slate-900 border-2 border-slate-200 flex items-center justify-center relative overflow-hidden group">
+                                                    <div className="absolute inset-0 bg-white/10 backdrop-blur-[1px]"></div>
+                                                    <Smartphone className={`h-8 w-8 text-slate-600 dark:text-slate-300 relative z-10 transition-transform ${theme === 'system' ? 'scale-110' : 'group-hover:scale-110'}`} />
+                                                </div>
+                                                <div className="text-center text-sm font-medium flex items-center justify-center gap-2">
+                                                    System
+                                                    {theme === 'system' && <Check className="w-3 h-3 text-primary" />}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Font Style */}
+                                    <div className="space-y-4 pt-4 border-t">
+                                        <div className="flex items-center justify-between">
+                                            <Label className="text-base flex items-center gap-2">
+                                                <Type className="w-4 h-4" /> 
+                                                Font Style
+                                            </Label>
+                                            <Select value={fontStyle} onValueChange={(value: any) => setFontStyle(value)}>
+                                                <SelectTrigger className="w-[180px]">
+                                                    <SelectValue placeholder="Select font" />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="default" className="focus:bg-primary focus:text-primary-foreground cursor-pointer">Default</SelectItem>
+                                                    <SelectItem value="google-sans" className="font-['Google_Sans'] focus:bg-primary focus:text-primary-foreground cursor-pointer">Google Sans</SelectItem>
+                                                    <SelectItem value="nunito-sans" className="font-['Nunito_Sans'] focus:bg-primary focus:text-primary-foreground cursor-pointer">Nunito Sans</SelectItem>
+                                                    <SelectItem value="inter" className="font-['Inter'] focus:bg-primary focus:text-primary-foreground cursor-pointer">Inter</SelectItem>
+                                                    <SelectItem value="dm-sans" className="font-['DM_Sans'] focus:bg-primary focus:text-primary-foreground cursor-pointer">DM Sans</SelectItem>
+                                                    <SelectItem value="ibm-plex-sans" className="font-['IBM_Plex_Sans'] focus:bg-primary focus:text-primary-foreground cursor-pointer">IBM Plex Sans</SelectItem>
+                                                    <SelectItem value="roboto" className="font-['Roboto'] focus:bg-primary focus:text-primary-foreground cursor-pointer">Roboto</SelectItem>
+                                                    <SelectItem value="playfair-display" className="font-['Playfair_Display'] focus:bg-primary focus:text-primary-foreground cursor-pointer">Playfair Display</SelectItem>
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+                                    </div>
+
+                                    {/* Font Size */}
+                                    <div className="space-y-4 pt-4 border-t">
+                                        <div className="flex items-center justify-between">
+                                            <Label className="text-base flex items-center gap-2">
+                                                <Type className="w-4 h-4" /> 
+                                                Font Size
+                                            </Label>
+                                            <span className="text-sm text-muted-foreground capitalize">{fontSize}</span>
+                                        </div>
+                                        <div className="grid grid-cols-3 gap-4">
+                                            <Button 
+                                                variant={fontSize === 'small' ? 'default' : 'outline'}
+                                                onClick={() => setFontSize('small')}
+                                                className={`h-12 text-sm transition-all duration-200 ${fontSize === 'small' ? 'shadow-md scale-[1.02]' : 'hover:border-primary hover:text-primary hover:bg-primary/5'}`}
+                                            >
+                                                Aa Small
+                                            </Button>
+                                            <Button 
+                                                variant={fontSize === 'medium' ? 'default' : 'outline'}
+                                                onClick={() => setFontSize('medium')}
+                                                className={`h-12 text-base transition-all duration-200 ${fontSize === 'medium' ? 'shadow-md scale-[1.02]' : 'hover:border-primary hover:text-primary hover:bg-primary/5'}`}
+                                            >
+                                                Aa Medium
+                                            </Button>
+                                            <Button 
+                                                variant={fontSize === 'large' ? 'default' : 'outline'}
+                                                onClick={() => setFontSize('large')}
+                                                className={`h-12 text-lg transition-all duration-200 ${fontSize === 'large' ? 'shadow-md scale-[1.02]' : 'hover:border-primary hover:text-primary hover:bg-primary/5'}`}
+                                            >
+                                                Aa Large
+                                            </Button>
+                                        </div>
+                                    </div>
+
+                                    {/* Accessibility */}
+                                    <div className="space-y-4 pt-4 border-t">
+                                        <Label className="text-base flex items-center gap-2 mb-4">
+                                            <EyeIcon className="w-4 h-4" /> 
+                                            Accessibility
+                                        </Label>
+                                        
+                                        <div className="flex items-center justify-between space-x-2 p-3 rounded-lg border border-transparent hover:bg-secondary/40 hover:border-border/50 transition-all duration-200">
+                                            <Label htmlFor="reduced-motion" className="flex flex-col space-y-1 cursor-pointer flex-1">
+                                                <span>Reduced Motion</span>
+                                                <span className="font-normal text-xs text-muted-foreground">Minimize animations and movement.</span>
+                                            </Label>
+                                            <Switch 
+                                                id="reduced-motion" 
+                                                checked={reducedMotion}
+                                                onCheckedChange={setReducedMotion}
+                                                className="data-[state=checked]:bg-primary"
+                                            />
+                                        </div>
+
+                                        <div className="flex items-center justify-between space-x-2 p-3 rounded-lg border border-transparent hover:bg-secondary/40 hover:border-border/50 transition-all duration-200">
+                                            <Label htmlFor="high-contrast" className="flex flex-col space-y-1 cursor-pointer flex-1">
+                                                <span>High Contrast</span>
+                                                <span className="font-normal text-xs text-muted-foreground">Increase contrast for better visibility.</span>
+                                            </Label>
+                                            <Switch 
+                                                id="high-contrast" 
+                                                checked={highContrast}
+                                                onCheckedChange={setHighContrast}
+                                                className="data-[state=checked]:bg-primary"
+                                            />
                                         </div>
                                     </div>
                                 </CardContent>
@@ -504,6 +658,202 @@ const Settings = () => {
                                         <Button variant="destructive" className="w-full sm:w-auto shadow-sm hover:shadow-red-500/25 transition-all duration-300">
                                             <LogOut className="w-4 h-4 mr-2" /> Sign out of all devices
                                         </Button>
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        </TabsContent>
+
+                        {/* CLINICAL TAB */}
+                        <TabsContent value="clinical" className="space-y-6 mt-0">
+                            <Card>
+                                <CardHeader>
+                                    <CardTitle>Clinical Preferences</CardTitle>
+                                    <CardDescription>Customize your clinical workspace and analysis parameters.</CardDescription>
+                                </CardHeader>
+                                <CardContent className="space-y-6">
+                                    <div className="flex items-center justify-between space-x-2">
+                                        <Label htmlFor="risk-threshold" className="flex flex-col space-y-1">
+                                            <span>High Risk Alert Threshold</span>
+                                            <span className="font-normal text-xs text-muted-foreground">Set the confidence score threshold for high-risk alerts (default: 85%).</span>
+                                        </Label>
+                                        <div className="flex items-center gap-2">
+                                            <span className="text-sm font-medium">85%</span>
+                                            <Button variant="outline" size="sm" className="h-8 shadow-sm hover:shadow-md transition-all duration-300 border-primary/20 text-primary hover:bg-primary hover:text-white hover:border-primary">Adjust</Button>
+                                        </div>
+                                    </div>
+
+                                    <div className="space-y-4 pt-4 border-t">
+                                        <div className="flex items-center justify-between">
+                                            <Label className="flex flex-col space-y-1">
+                                                <span>Diagnostic Standard</span>
+                                                <span className="font-normal text-xs text-muted-foreground">Select the clinical criteria used for validation.</span>
+                                            </Label>
+                                            <Select defaultValue="mds">
+                                                <SelectTrigger className="w-[230px] justify-between text-left">
+                                                    <SelectValue placeholder="Select criteria" />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="mds" className="focus:bg-primary focus:text-primary-foreground cursor-pointer">MDS Clinical Criteria</SelectItem>
+                                                    <SelectItem value="ukbb" className="focus:bg-primary focus:text-primary-foreground cursor-pointer">UK Brain Bank</SelectItem>
+                                                    <SelectItem value="gelb" className="focus:bg-primary focus:text-primary-foreground cursor-pointer">Gelb Criteria</SelectItem>
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+                                    </div>
+
+                                    <div className="space-y-4 pt-4 border-t">
+                                        <div className="flex items-center justify-between">
+                                            <Label className="flex flex-col space-y-1">
+                                                <span>Analysis Mode</span>
+                                                <span className="font-normal text-xs text-muted-foreground">Choose the primary model architecture for predictions.</span>
+                                            </Label>
+                                            <Select defaultValue="ensemble">
+                                                <SelectTrigger className="w-[230px] justify-between text-left">
+                                                    <SelectValue placeholder="Select mode" />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="standard" className="focus:bg-primary focus:text-primary-foreground cursor-pointer">Standard (Fast)</SelectItem>
+                                                    <SelectItem value="ensemble" className="focus:bg-primary focus:text-primary-foreground cursor-pointer">Ensemble Method (Accurate)</SelectItem>
+                                                    <SelectItem value="experimental" className="focus:bg-primary focus:text-primary-foreground cursor-pointer">Experimental (Beta)</SelectItem>
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+                                    </div>
+
+                                    <div className="space-y-4 pt-4 border-t">
+                                        <div className="flex items-center justify-between">
+                                            <Label className="flex flex-col space-y-1">
+                                                <span>Default Dashboard View</span>
+                                                <span className="font-normal text-xs text-muted-foreground">Set the primary view when logging in.</span>
+                                            </Label>
+                                            <Select defaultValue="overview">
+                                                <SelectTrigger className="w-[230px] justify-between text-left">
+                                                    <SelectValue placeholder="Select view" />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="overview" className="focus:bg-primary focus:text-primary-foreground cursor-pointer">Risk Overview</SelectItem>
+                                                    <SelectItem value="patients" className="focus:bg-primary focus:text-primary-foreground cursor-pointer">Patient List</SelectItem>
+                                                    <SelectItem value="activity" className="focus:bg-primary focus:text-primary-foreground cursor-pointer">Recent Activity</SelectItem>
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+                                    </div>
+
+                                    <div className="flex items-center justify-between space-x-2 pt-4 border-t">
+                                        <Label htmlFor="auto-report" className="flex flex-col space-y-1">
+                                            <span>Automated Reporting</span>
+                                            <span className="font-normal text-xs text-muted-foreground">Automatically generate PDF reports after analysis completion.</span>
+                                        </Label>
+                                        <Switch id="auto-report" />
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        </TabsContent>
+
+                        {/* INTEGRATIONS TAB */}
+                        <TabsContent value="integrations" className="space-y-6 mt-0">
+                            <Card>
+                                <CardHeader>
+                                    <CardTitle>Integrations</CardTitle>
+                                    <CardDescription>Manage connections with external systems and devices.</CardDescription>
+                                </CardHeader>
+                                <CardContent className="space-y-6">
+                                    <div className="flex items-center justify-between p-4 border rounded-lg">
+                                        <div className="flex items-center gap-4">
+                                            <div className="p-2 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                                                <Activity className="h-6 w-6 text-blue-600 dark:text-blue-400" />
+                                            </div>
+                                            <div>
+                                                <h4 className="font-medium">EHR System</h4>
+                                                <p className="text-sm text-muted-foreground">Connect to hospital Electronic Health Records.</p>
+                                            </div>
+                                        </div>
+                                        <Button variant="outline" className="shadow-sm hover:shadow-md transition-all duration-300 border-primary/20 text-primary hover:bg-primary hover:text-white hover:border-primary">Connect</Button>
+                                    </div>
+                                    <div className="flex items-center justify-between p-4 border rounded-lg">
+                                        <div className="flex items-center gap-4">
+                                            <div className="p-2 bg-green-50 dark:bg-green-900/20 rounded-lg">
+                                                <Smartphone className="h-6 w-6 text-green-600 dark:text-green-400" />
+                                            </div>
+                                            <div>
+                                                <h4 className="font-medium">Wearable Devices</h4>
+                                                <p className="text-sm text-muted-foreground">Sync data from patient wearables.</p>
+                                            </div>
+                                        </div>
+                                        <Button variant="outline" className="shadow-sm hover:shadow-md transition-all duration-300 border-primary/20 text-primary hover:bg-primary hover:text-white hover:border-primary">Manage</Button>
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        </TabsContent>
+
+                        {/* DATA TAB */}
+                        <TabsContent value="data" className="space-y-6 mt-0">
+                            <Card>
+                                <CardHeader>
+                                    <CardTitle>Data & Privacy</CardTitle>
+                                    <CardDescription>Manage your data, exports, and privacy settings.</CardDescription>
+                                </CardHeader>
+                                <CardContent className="space-y-6">
+                                    <div className="space-y-4">
+                                        <h4 className="text-sm font-medium">Data Export</h4>
+                                        <div className="flex items-center justify-between p-4 border rounded-lg">
+                                            <div className="flex items-center gap-4">
+                                                <FileText className="h-5 w-5 text-muted-foreground" />
+                                                <div className="space-y-1">
+                                                    <p className="text-sm font-medium">Patient Records (CSV)</p>
+                                                    <p className="text-xs text-muted-foreground">Export all patient analysis records.</p>
+                                                </div>
+                                            </div>
+                                            <Button variant="outline" size="sm" className="shadow-sm hover:shadow-md transition-all duration-300 border-primary/20 text-primary hover:bg-primary hover:text-white hover:border-primary">
+                                                <Download className="h-4 w-4 mr-2" /> Export
+                                            </Button>
+                                        </div>
+                                    </div>
+                                    <div className="pt-4 border-t">
+                                        <h4 className="text-sm font-medium mb-4">Storage & Retention</h4>
+                                        <div className="flex items-center justify-between space-x-2">
+                                            <Label htmlFor="local-cache" className="flex flex-col space-y-1">
+                                                <span>Local Caching</span>
+                                                <span className="font-normal text-xs text-muted-foreground">Cache patient data locally for faster access (Encrypted).</span>
+                                            </Label>
+                                            <Switch id="local-cache" defaultChecked />
+                                        </div>
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        </TabsContent>
+
+                        {/* SUPPORT TAB */}
+                        <TabsContent value="support" className="space-y-6 mt-0">
+                            <Card>
+                                <CardHeader>
+                                    <CardTitle>Help & Support</CardTitle>
+                                    <CardDescription>Get help with the platform.</CardDescription>
+                                </CardHeader>
+                                <CardContent className="space-y-6">
+                                    <div className="grid gap-4 md:grid-cols-2">
+                                        <div className="p-4 border rounded-xl hover:bg-secondary/50 transition-colors cursor-pointer group">
+                                            <div className="mb-3">
+                                                <FileText className="h-6 w-6 text-primary group-hover:scale-110 transition-transform" />
+                                            </div>
+                                            <h4 className="font-medium mb-1">Documentation</h4>
+                                            <p className="text-sm text-muted-foreground">Read the user guide and API docs.</p>
+                                        </div>
+                                        <div className="p-4 border rounded-xl hover:bg-secondary/50 transition-colors cursor-pointer group">
+                                            <div className="mb-3">
+                                                <HelpCircle className="h-6 w-6 text-primary group-hover:scale-110 transition-transform" />
+                                            </div>
+                                            <h4 className="font-medium mb-1">Contact Support</h4>
+                                            <p className="text-sm text-muted-foreground">Get in touch with our support team.</p>
+                                        </div>
+                                    </div>
+                                    <div className="mt-6 p-4 bg-muted/30 rounded-lg">
+                                        <h4 className="font-medium mb-2">Version Information</h4>
+                                        <div className="text-sm text-muted-foreground space-y-1">
+                                            <p>Platform Version: 2.1.0-beta</p>
+                                            <p>Model Version: PD-Net v4.2</p>
+                                            <p>Last Updated: Jan 2026</p>
+                                        </div>
                                     </div>
                                 </CardContent>
                             </Card>

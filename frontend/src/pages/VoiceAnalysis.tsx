@@ -251,20 +251,14 @@ const VoiceAnalysis = () => {
                                     </div>
                                 ) : audioBlob ? (
                                     <div className="text-center space-y-4">
-                                        <div className="bg-green-50 text-green-700 px-4 py-2 rounded-lg text-sm font-medium flex items-center justify-center">
-                                            <CheckCircle2 className="w-4 h-4 mr-2" />
+                                        <div className="bg-green-50 text-green-700 px-6 py-3 rounded-xl text-lg font-medium inline-flex items-center justify-center mb-8">
+                                            <CheckCircle2 className="w-6 h-6 mr-2" />
                                             Recording Saved
                                         </div>
-                                        <div className="flex flex-col gap-2">
-                                             <Button 
-                                                className="w-full bg-gradient-hero shadow-lg" 
-                                                onClick={() => startAnalysis('audio')}
-                                             >
-                                                Analyze Recording
-                                             </Button>
+                                        <div className="flex gap-4 w-full max-w-sm mx-auto">
                                              <Button 
                                                 variant="outline"
-                                                className="w-full" 
+                                                className="flex-1 h-11 text-base border-primary/20 text-primary bg-background hover:bg-primary hover:text-white hover:border-primary shadow-sm hover:shadow-md transition-all duration-300" 
                                                 onClick={() => {
                                                     setAudioBlob(null);
                                                     setResult(null);
@@ -272,10 +266,16 @@ const VoiceAnalysis = () => {
                                              >
                                                 Record Again
                                              </Button>
+                                             <Button 
+                                                className="flex-1 h-11 text-base bg-gradient-hero shadow-lg hover:shadow-xl hover:scale-[1.02] transition-all duration-200" 
+                                                onClick={() => startAnalysis('audio')}
+                                             >
+                                                Analyze Recording
+                                             </Button>
                                         </div>
                                     </div>
                                 ) : (
-                                    <Button size="lg" className="w-full max-w-xs bg-gradient-hero shadow-lg hover:shadow-xl transition-all" onClick={startAudioRecording}>
+                                    <Button size="lg" className="bg-gradient-hero shadow-lg hover:shadow-xl transition-all px-8 rounded-full" onClick={startAudioRecording}>
                                         <PlayCircle className="w-5 h-5 mr-2" /> Start Recording
                                     </Button>
                                 )}
@@ -313,9 +313,18 @@ const VoiceAnalysis = () => {
                                         <p className="font-bold text-lg mb-1">{selectedAudioFile.name}</p>
                                         <p className="text-sm text-muted-foreground mb-6">{(selectedAudioFile.size / 1024 / 1024).toFixed(2)} MB</p>
                                         
-                                        <div className="flex gap-3 w-full max-w-xs">
-                                            <Button variant="outline" className="flex-1" onClick={() => setSelectedAudioFile(null)}>Cancel</Button>
-                                            <Button className="flex-1 bg-gradient-hero shadow-lg" onClick={() => startAnalysis('audio')}>
+                                        <div className="flex gap-4 w-full max-w-sm">
+                                            <Button 
+                                                variant="outline" 
+                                                className="flex-1 border-primary/20 text-primary bg-background hover:bg-primary hover:text-white hover:border-primary shadow-sm hover:shadow-md transition-all duration-300" 
+                                                onClick={() => setSelectedAudioFile(null)}
+                                            >
+                                                Cancel
+                                            </Button>
+                                            <Button 
+                                                className="flex-1 h-11 text-base bg-gradient-hero shadow-lg hover:shadow-xl hover:scale-[1.02] hover:opacity-95 transition-all duration-200" 
+                                                onClick={() => startAnalysis('audio')}
+                                            >
                                                 Analyze Audio
                                             </Button>
                                         </div>
@@ -335,9 +344,9 @@ const VoiceAnalysis = () => {
                                 <CardTitle className="flex items-center text-purple-600">
                                     <Video className="w-5 h-5 mr-2" /> Live Gait Analysis
                                 </CardTitle>
-                                <CardDescription>Walk in front of camera for gait assessment</CardDescription>
+                                <CardDescription>Position yourself in front of camera for gait assessment</CardDescription>
                             </CardHeader>
-                            <CardContent className="p-0 bg-black/90 min-h-[400px] relative flex flex-col items-center justify-center">
+                            <CardContent className={`p-0 min-h-[300px] relative flex flex-col items-center justify-center ${isVideoActive ? 'bg-black/90' : videoCaptured ? 'bg-white p-8' : 'bg-black/90'}`}>
                                 {isVideoActive ? (
                                     <>
                                         <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-cover" />
@@ -348,27 +357,30 @@ const VoiceAnalysis = () => {
                                         </div>
                                     </>
                                 ) : videoCaptured ? (
-                                    <div className="text-center p-8 w-full h-full flex flex-col items-center justify-center animate-in fade-in">
-                                        <div className="bg-green-50 text-green-700 px-6 py-3 rounded-xl text-lg font-medium flex items-center justify-center mb-8">
+                                    <div className="text-center w-full h-full flex flex-col items-center justify-center animate-in fade-in">
+                                         <div className="w-32 h-32 rounded-full flex items-center justify-center mb-8 bg-secondary">
+                                            <Video className="w-12 h-12 text-purple-600" />
+                                        </div>
+                                        <div className="bg-green-50 text-green-700 px-6 py-3 rounded-xl text-lg font-medium inline-flex items-center justify-center mb-8">
                                             <CheckCircle2 className="w-6 h-6 mr-2" />
                                             Video Captured
                                         </div>
-                                        <div className="flex flex-col gap-4 w-full max-w-xs">
-                                             <Button 
-                                                className="w-full bg-gradient-hero shadow-lg h-12 text-lg" 
-                                                onClick={() => startAnalysis('video')}
-                                             >
-                                                Analyze Stream
-                                             </Button>
+                                        <div className="flex gap-4 w-full max-w-sm mx-auto">
                                              <Button 
                                                 variant="outline"
-                                                className="w-full" 
+                                                className="flex-1 h-11 text-base border-primary/20 text-primary bg-background hover:bg-primary hover:text-white hover:border-primary shadow-sm hover:shadow-md transition-all duration-300" 
                                                 onClick={() => {
                                                     setVideoCaptured(false);
                                                     setResult(null);
                                                 }}
                                              >
                                                 Record Again
+                                             </Button>
+                                             <Button 
+                                                className="flex-1 h-11 text-base bg-gradient-hero shadow-lg hover:shadow-xl hover:scale-[1.02] transition-all duration-200" 
+                                                onClick={() => startAnalysis('video')}
+                                             >
+                                                Analyze Stream
                                              </Button>
                                         </div>
                                     </div>
@@ -397,7 +409,7 @@ const VoiceAnalysis = () => {
                             </CardHeader>
                             <CardContent className="p-8">
                                 {!selectedVideoFile ? (
-                                    <div className="border-2 border-dashed border-border hover:border-purple-500/50 hover:bg-purple-50/50 rounded-xl p-10 flex flex-col items-center justify-center transition-all cursor-pointer h-[400px]"
+                                    <div className="border-2 border-dashed border-border hover:border-purple-500/50 hover:bg-purple-50/50 rounded-xl p-10 flex flex-col items-center justify-center transition-all cursor-pointer h-[300px]"
                                         onClick={() => triggerUpload('video')}>
                                         <div className="bg-background p-4 rounded-full shadow-md mb-4">
                                             <FileVideo className="w-8 h-8 text-muted-foreground" />
@@ -406,7 +418,7 @@ const VoiceAnalysis = () => {
                                         <p className="text-sm text-muted-foreground text-center">Analyze resting tremor or walking patterns from pre-recorded video</p>
                                     </div>
                                 ) : (
-                                     <div className="border-2 border-solid border-purple-500/20 bg-purple-50/10 rounded-xl p-8 flex flex-col items-center justify-center h-[400px] animate-in zoom-in-95">
+                                     <div className="border-2 border-solid border-purple-500/20 bg-purple-50/10 rounded-xl p-8 flex flex-col items-center justify-center h-[300px] animate-in zoom-in-95">
                                         <div className="bg-white p-4 rounded-full shadow-lg mb-4 relative">
                                             <FileVideo className="w-8 h-8 text-purple-600" />
                                             <div className="absolute -top-1 -right-1 bg-green-500 rounded-full p-1 border-2 border-white">
@@ -416,9 +428,18 @@ const VoiceAnalysis = () => {
                                         <p className="font-bold text-lg mb-1">{selectedVideoFile.name}</p>
                                         <p className="text-sm text-muted-foreground mb-6">{(selectedVideoFile.size / 1024 / 1024).toFixed(2)} MB</p>
                                         
-                                        <div className="flex gap-3 w-full max-w-xs">
-                                            <Button variant="outline" className="flex-1" onClick={() => setSelectedVideoFile(null)}>Cancel</Button>
-                                            <Button className="flex-1 bg-purple-600 hover:bg-purple-700 text-white shadow-lg" onClick={() => startAnalysis('video')}>
+                                        <div className="flex gap-4 w-full max-w-sm">
+                                            <Button 
+                                                variant="outline" 
+                                                className="flex-1 border-primary/20 text-primary bg-background hover:bg-primary hover:text-white hover:border-primary shadow-sm hover:shadow-md transition-all duration-300" 
+                                                onClick={() => setSelectedVideoFile(null)}
+                                            >
+                                                Cancel
+                                            </Button>
+                                            <Button 
+                                                className="flex-1 h-11 text-base bg-gradient-hero shadow-lg hover:shadow-xl hover:scale-[1.02] hover:opacity-95 transition-all duration-200" 
+                                                onClick={() => startAnalysis('video')}
+                                            >
                                                 Analyze Video
                                             </Button>
                                         </div>
