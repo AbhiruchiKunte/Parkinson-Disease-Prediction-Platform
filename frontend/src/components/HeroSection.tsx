@@ -24,7 +24,7 @@ const HeroSection = () => {
       <div className="container mx-auto px-6 relative z-10">
         <div className="text-center text-white mb-12 animate-in fade-in slide-in-from-bottom-5 duration-700">
           <h1 className="text-4xl md:text-7xl font-bold mb-6 tracking-tight">
-            Advanced Parkinson's Detection
+            Parkinson's Disease Detection
           </h1>
           <p className="text-xl md:text-2xl mb-8 opacity-90 max-w-3xl mx-auto font-light">
             AI-powered analysis for early detection and stage classification of Parkinson's disease

@@ -58,7 +58,7 @@ const Dashboard = () => {
             <Activity className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">1,284</div>
+            <div className="text-2xl font-bold">60</div>
             <p className="text-xs text-muted-foreground">+12% from last month</p>
           </CardContent>
         </Card>
@@ -68,7 +68,7 @@ const Dashboard = () => {
             <AlertCircle className="h-4 w-4 text-destructive" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">342</div>
+            <div className="text-2xl font-bold">34</div>
             <p className="text-xs text-muted-foreground">~26% detection rate</p>
           </CardContent>
         </Card>
@@ -88,7 +88,7 @@ const Dashboard = () => {
             <Database className="h-4 w-4 text-blue-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">12.5k</div>
+            <div className="text-2xl font-bold">6.8k</div>
             <p className="text-xs text-muted-foreground">Training dataset size</p>
           </CardContent>
         </Card>
@@ -158,7 +158,9 @@ const Dashboard = () => {
                  <div className="flex flex-wrap gap-2">
                     <span className="px-3 py-1 bg-primary/10 text-primary text-xs rounded-full border border-primary/20">Random Forest</span>
                     <span className="px-3 py-1 bg-primary/10 text-primary text-xs rounded-full border border-primary/20">SVM</span>
-                    <span className="px-3 py-1 bg-gray-100 text-gray-500 text-xs rounded-full border border-gray-200">LSTM (Loading...)</span>
+                    <span className="px-3 py-1 bg-blue-100 text-blue-600 text-xs rounded-full border border-blue-200">KNN</span>
+                    <span className="px-3 py-1 bg-primary/10 text-primary text-xs rounded-full border border-primary/20">DT</span>
+                    <span className="px-3 py-1 bg-primary/10 text-primary text-xs rounded-full border border-primary/20">LSTM</span>
                  </div>
             </div>
           </CardContent>

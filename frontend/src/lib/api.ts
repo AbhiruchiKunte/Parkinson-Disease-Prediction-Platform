@@ -25,6 +25,12 @@ export interface BatchPredictionResponse {
   failed_predictions: number;
 }
 
+export interface HealthCheckResponse {
+  status: string;
+  model_loaded: boolean;
+  message?: string;
+}
+
 export const api = {
   predict: async (data: any, userId?: string) => {
     try {
@@ -98,6 +104,16 @@ export const api = {
     } catch (error) {
       console.error("Benchmarks error:", error);
       return []; // Return empty array on error
+    }
+  },
+
+  healthCheck: async (): Promise<HealthCheckResponse> => {
+    try {
+      const response = await axios.get(`${API_Base}/health`);
+      return response.data;
+    } catch (error) {
+      console.error("Health check error:", error);
+      throw error;
     }
   }
 };
