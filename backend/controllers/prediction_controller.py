@@ -66,6 +66,7 @@ import os
 import uuid
 import logging
 from datetime import datetime, timezone
+from datetime import timedelta
 from supabase import create_client, Client
 from dotenv import load_dotenv
 
@@ -327,8 +328,8 @@ def predict_batch(request):
 
 def predict_audio_file(request):
     """
-    Handle audio file prediction.
-    User asked NOT to store results for this yet, so we just predict.
+    Handle audio file prediction using LSTM (MFCC + delta + delta2)
+    and store result to Supabase.
     """
     temp_path = None
     try:
@@ -338,27 +339,46 @@ def predict_audio_file(request):
         file = request.files['file']
         if file.filename == '':
             return jsonify({"error": "No selected file"}), 400
+        user_id = request.form.get('user_id')
             
         # Save temp file
         temp_filename = f"temp_{uuid.uuid4()}.wav"
         temp_path = os.path.join("temp", temp_filename)
         os.makedirs("temp", exist_ok=True)
         file.save(temp_path)
-        
-        # Extract features
-        audio_features = extract_audio_features(temp_path)
-        
-        # Default value: Age=60, Tremor=0, Handwriting=0 (Assume healthy if not provided)
-        features = {
-            'age': float(request.form.get('age', 60)),
-            'tremor_score': float(request.form.get('tremor_score', 0)),
-            'handwriting_score': float(request.form.get('handwriting_score', 0)),
-            'jitter_local': audio_features['jitter_local'],
-            'shimmer_local': audio_features['shimmer_local']
-        }
-        
-        # Predict
-        result = model_handler.predict_single(features)
+
+        # Predict with dedicated LSTM audio model
+        result = model_handler.predict_audio_lstm(temp_path)
+        result["prediction_status"] = result["prediction_label"]
+        result["generated_at"] = datetime.now(timezone.utc).isoformat()
+
+        # Store in Supabase
+        if supabase_admin:
+            try:
+                db_record = {
+                    "user_id": user_id,
+                    "filename": file.filename,
+                    "total_records": 1,
+                    "successful_predictions": 1,
+                    "failed_predictions": 0,
+                    "results_json": {
+                        "type": "audio",
+                        "prediction_label": result.get("prediction_label"),
+                        "prediction_confidence": result.get("prediction_confidence"),
+                        "pd_probability": result.get("pd_probability"),
+                        "feature_means": result.get("feature_means", {}),
+                        "waveform_preview": result.get("waveform_preview", []),
+                        "generated_at": result.get("generated_at"),
+                    },
+                    "status": "audio_completed"
+                }
+                supabase_admin.from_("batch_process_results").insert(db_record).execute()
+                result["db_status"] = "saved"
+            except Exception as db_err:
+                logger.error(f"Failed to save audio result to DB: {db_err}")
+                result["db_status"] = f"failed: {str(db_err)}"
+        else:
+            result["db_status"] = "skipped (db unavailable)"
         
         # Clean up
         if os.path.exists(temp_path):
@@ -377,6 +397,95 @@ def predict_audio_file(request):
             except Exception:
                 pass
         return jsonify({"error": str(e)}), 500
+
+
+def get_audio_history(request):
+    """
+    Fetch stored audio LSTM predictions for dynamic frontend visualizations.
+    """
+    try:
+        if not supabase_admin:
+            return jsonify({"error": "Database connection unavailable"}), 503
+
+        user_id = request.args.get('user_id')
+        query = supabase_admin.from_("batch_process_results").select(
+            "created_at,filename,results_json,status"
+        ).eq("status", "audio_completed").order("created_at", desc=True).limit(500)
+
+        if user_id:
+            query = query.eq("user_id", user_id)
+
+        response = query.execute()
+        rows = response.data or []
+
+        entries = []
+        normal_count = 0
+        parkinson_count = 0
+        confidence_sum = 0.0
+
+        day_counts = {}
+        today = datetime.now(timezone.utc).date()
+        for d in range(13, -1, -1):
+            key = (today - timedelta(days=d)).isoformat()
+            day_counts[key] = 0
+
+        for row in rows:
+            payload = row.get("results_json", {}) if isinstance(row.get("results_json"), dict) else {}
+            label = payload.get("prediction_label", "Normal")
+            confidence = float(payload.get("prediction_confidence", 0.0) or 0.0)
+            pd_probability = float(payload.get("pd_probability", 0.0) or 0.0)
+            feature_means = payload.get("feature_means", {}) if isinstance(payload.get("feature_means"), dict) else {}
+
+            created_at = row.get("created_at")
+            created_dt = None
+            if isinstance(created_at, str):
+                try:
+                    created_dt = datetime.fromisoformat(created_at.replace("Z", "+00:00"))
+                except Exception:
+                    created_dt = None
+
+            if label.lower() == "parkinson":
+                parkinson_count += 1
+            else:
+                normal_count += 1
+
+            confidence_sum += confidence
+
+            if created_dt:
+                k = created_dt.date().isoformat()
+                if k in day_counts:
+                    day_counts[k] += 1
+
+            entries.append({
+                "created_at": created_at,
+                "filename": row.get("filename"),
+                "prediction_label": label,
+                "prediction_confidence": round(confidence, 4),
+                "pd_probability": round(pd_probability, 4),
+                "feature_means": {
+                    "mfcc_mean": float(feature_means.get("mfcc_mean", 0.0) or 0.0),
+                    "delta_mean": float(feature_means.get("delta_mean", 0.0) or 0.0),
+                    "delta2_mean": float(feature_means.get("delta2_mean", 0.0) or 0.0),
+                },
+                "waveform_preview": payload.get("waveform_preview", []),
+            })
+
+        avg_confidence = (confidence_sum / len(entries)) if entries else 0.0
+        daily_trend = [{"date": k, "count": v} for k, v in day_counts.items()]
+
+        return jsonify({
+            "entries": entries,
+            "summary": {
+                "total": len(entries),
+                "normal": normal_count,
+                "parkinson": parkinson_count,
+                "average_confidence": round(avg_confidence, 4),
+            },
+            "daily_trend": daily_trend,
+        }), 200
+    except Exception as e:
+        logger.error(f"Audio history error: {str(e)}")
+        return jsonify({"error": "Failed to fetch audio history"}), 500
 
 def get_benchmarks():
     """

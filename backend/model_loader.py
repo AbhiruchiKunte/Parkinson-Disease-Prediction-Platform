@@ -2,6 +2,7 @@ import joblib
 import pickle
 import pandas as pd
 import numpy as np
+import librosa
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 from sklearn.decomposition import PCA
@@ -33,6 +34,9 @@ class ModelHandler:
         self.svm_classifier = None
         self.knn_classifier = None
         self.dt_classifier = None
+        self.lstm_audio_model = None
+        self.lstm_audio_input_shape = None
+        self.lstm_audio_load_error = None
         self.feature_names = [
             'age', 'tremor_score', 'handwriting_score', 
             'jitter_local', 'shimmer_local'
@@ -89,6 +93,9 @@ class ModelHandler:
 
             # Load Decision Tree classifier
             self.dt_classifier = self._load_component("DT Classifier", 'decision_tree.pkl')
+
+            # Load LSTM audio model (optional dependency: tensorflow)
+            self._load_lstm_audio_model()
             
             if self.classifier is None:
                 logger.warning("RF Classifier model not found.")
@@ -104,10 +111,132 @@ class ModelHandler:
                 
         except Exception as e:
             logger.error(f"Error loading models: {str(e)}")
+
+    def _load_lstm_audio_model(self):
+        """Load LSTM audio model saved as .h5"""
+        h5_path = self.model_path / 'lstm_voice_model.h5'
+        if not h5_path.exists():
+            logger.warning("LSTM audio model not found.")
+            return
+
+        try:
+            from tensorflow.keras.models import load_model  # type: ignore
+
+            self.lstm_audio_model = load_model(h5_path)
+            self.lstm_audio_input_shape = self.lstm_audio_model.input_shape
+            self.lstm_audio_load_error = None
+            logger.info(f"LSTM audio model loaded successfully from {h5_path}")
+            logger.info(f"LSTM input shape: {self.lstm_audio_input_shape}")
+        except Exception as e:
+            self.lstm_audio_load_error = str(e)
+            logger.error(f"Failed to load LSTM audio model: {e}")
+            self.lstm_audio_model = None
+            self.lstm_audio_input_shape = None
             
     def is_model_loaded(self):
         """Check if models are properly loaded"""
         return self.classifier is not None
+
+    def is_audio_model_loaded(self):
+        return self.lstm_audio_model is not None
+
+    def _prepare_lstm_audio_input(self, file_path):
+        """
+        Build MFCC + delta + delta2 features and shape them to match
+        the loaded LSTM model input.
+        """
+        y, sr = librosa.load(file_path, sr=22050, duration=5.0)
+        if y is None or len(y) == 0:
+            raise ValueError("Empty audio signal")
+
+        # Training-compatible features
+        mfcc = librosa.feature.mfcc(y=y, sr=sr, n_mfcc=13)
+        delta = librosa.feature.delta(mfcc)
+        delta2 = librosa.feature.delta(mfcc, order=2)
+        features = np.concatenate([mfcc, delta, delta2], axis=0)  # (39, T)
+        seq = features.T.astype(np.float32)  # (T, 39)
+
+        waveform_preview = np.abs(y[:22050]).astype(np.float32)  # up to first ~1s preview
+        step = max(1, len(waveform_preview) // 120)
+        waveform_preview = waveform_preview[::step][:120]
+        waveform_preview = waveform_preview / (np.max(waveform_preview) + 1e-8)
+
+        shape = self.lstm_audio_input_shape
+        if isinstance(shape, list):
+            shape = shape[0]
+
+        if not shape or len(shape) < 2:
+            raise ValueError("Unexpected LSTM input shape")
+
+        if len(shape) == 3:
+            target_steps = shape[1]
+            target_features = shape[2]
+
+            if target_features is not None:
+                if seq.shape[1] < target_features:
+                    pad_cols = target_features - seq.shape[1]
+                    seq = np.pad(seq, ((0, 0), (0, pad_cols)), mode='constant')
+                elif seq.shape[1] > target_features:
+                    seq = seq[:, :target_features]
+
+            if target_steps is not None:
+                if seq.shape[0] < target_steps:
+                    pad_rows = target_steps - seq.shape[0]
+                    seq = np.pad(seq, ((0, pad_rows), (0, 0)), mode='constant')
+                elif seq.shape[0] > target_steps:
+                    seq = seq[:target_steps, :]
+
+            model_input = np.expand_dims(seq, axis=0)
+        else:
+            # Dense/flat fallback
+            target = shape[1] if len(shape) > 1 else seq.size
+            flat = seq.flatten()
+            if target is not None:
+                if flat.shape[0] < target:
+                    flat = np.pad(flat, (0, target - flat.shape[0]), mode='constant')
+                elif flat.shape[0] > target:
+                    flat = flat[:target]
+            model_input = np.expand_dims(flat, axis=0).astype(np.float32)
+
+        return model_input, {
+            "mfcc_mean": float(np.mean(mfcc)),
+            "delta_mean": float(np.mean(delta)),
+            "delta2_mean": float(np.mean(delta2)),
+            "waveform_preview": waveform_preview.tolist(),
+        }
+
+    def predict_audio_lstm(self, file_path):
+        """Predict Parkinson likelihood from audio using LSTM."""
+        if not self.is_audio_model_loaded():
+            detail = self.lstm_audio_load_error or "Unknown load-time error"
+            raise RuntimeError(f"LSTM audio model not loaded. Details: {detail}")
+
+        model_input, meta = self._prepare_lstm_audio_input(file_path)
+        pred = self.lstm_audio_model.predict(model_input, verbose=0)
+        pred = np.asarray(pred)
+
+        if pred.ndim == 2 and pred.shape[1] >= 2:
+            # softmax: assume index 1 = parkinson class
+            pd_probability = float(pred[0][1])
+        else:
+            # sigmoid or scalar output
+            pd_probability = float(pred.reshape(-1)[0])
+
+        pd_probability = max(0.0, min(1.0, pd_probability))
+        label = "Parkinson" if pd_probability >= 0.5 else "Normal"
+        confidence = pd_probability if label == "Parkinson" else (1.0 - pd_probability)
+
+        return {
+            "prediction_label": label,
+            "prediction_confidence": round(confidence, 4),
+            "pd_probability": round(pd_probability, 4),
+            "feature_means": {
+                "mfcc_mean": round(meta["mfcc_mean"], 6),
+                "delta_mean": round(meta["delta_mean"], 6),
+                "delta2_mean": round(meta["delta2_mean"], 6),
+            },
+            "waveform_preview": meta["waveform_preview"],
+        }
     
     def preprocess_features(self, features_dict):
         """Preprocess features for prediction"""
@@ -252,7 +381,8 @@ class ModelHandler:
                 "rf": self.classifier is not None,
                 "svm": self.svm_classifier is not None,
                 "knn": self.knn_classifier is not None,
-                "dt": self.dt_classifier is not None
+                "dt": self.dt_classifier is not None,
+                "lstm_audio": self.lstm_audio_model is not None,
             },
             "feature_descriptions": {
                 "age": "Patient age in years",

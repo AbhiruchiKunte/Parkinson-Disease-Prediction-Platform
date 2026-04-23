@@ -1,8 +1,11 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Mic, Upload, Video, PlayCircle, StopCircle, RefreshCw, AlertCircle, FileAudio, FileVideo, Activity, Brain, X, CheckCircle2 } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { useAuth } from '@/contexts/AuthContext';
+import { useToast } from '@/hooks/use-toast';
+import { api, AudioHistoryEntry } from '@/lib/api';
 import { 
   RadialBarChart, RadialBar, PolarAngleAxis, 
   Radar, RadarChart, PolarGrid, PolarRadiusAxis, 
@@ -11,10 +14,20 @@ import {
 } from 'recharts';
 
 const VoiceAnalysis = () => {
+    const { user } = useAuth();
+    const { toast } = useToast();
     const [isRecordingAudio, setIsRecordingAudio] = useState(false);
     const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
     const [isProcessing, setIsProcessing] = useState(false);
     const [result, setResult] = useState<any>(null);
+    const [audioHistory, setAudioHistory] = useState<AudioHistoryEntry[]>([]);
+    const [audioSummary, setAudioSummary] = useState({
+        total: 0,
+        normal: 0,
+        parkinson: 0,
+        average_confidence: 0,
+    });
+    const [dailyTrend, setDailyTrend] = useState<{ date: string; count: number }[]>([]);
 
     const [selectedAudioFile, setSelectedAudioFile] = useState<File | null>(null);
     const [selectedVideoFile, setSelectedVideoFile] = useState<File | null>(null);
@@ -35,6 +48,79 @@ const VoiceAnalysis = () => {
             videoRef.current.srcObject = streamRef.current;
         }
     }, [isVideoActive]);
+
+    const loadAudioHistory = async () => {
+        try {
+            const response = await api.getAudioHistory(user?.id);
+            setAudioHistory(response.entries || []);
+            setAudioSummary(response.summary || {
+                total: 0,
+                normal: 0,
+                parkinson: 0,
+                average_confidence: 0,
+            });
+            setDailyTrend(response.daily_trend || []);
+        } catch (err) {
+            console.error("Failed to fetch audio history:", err);
+        }
+    };
+
+    useEffect(() => {
+        loadAudioHistory();
+        const timer = setInterval(loadAudioHistory, 30000);
+        return () => clearInterval(timer);
+    }, [user?.id]);
+
+    const audioWaveData = useMemo(() => {
+        const wave = (result?.waveform_preview || []) as number[];
+        if (!wave.length) return [];
+        return wave.slice(0, 120).map((value, index) => ({
+            time: `${index}`,
+            val: Math.round(Number(value) * 100),
+        }));
+    }, [result]);
+
+    const featureBarsData = useMemo(() => {
+        if (!result?.feature_means) return [];
+
+        const current = {
+            mfcc: Math.abs(Number(result.feature_means.mfcc_mean || 0)),
+            delta: Math.abs(Number(result.feature_means.delta_mean || 0)),
+            delta2: Math.abs(Number(result.feature_means.delta2_mean || 0)),
+        };
+
+        const historyMeans = audioHistory.reduce(
+            (acc, item) => {
+                acc.mfcc += Math.abs(Number(item.feature_means?.mfcc_mean || 0));
+                acc.delta += Math.abs(Number(item.feature_means?.delta_mean || 0));
+                acc.delta2 += Math.abs(Number(item.feature_means?.delta2_mean || 0));
+                return acc;
+            },
+            { mfcc: 0, delta: 0, delta2: 0 }
+        );
+        const divisor = Math.max(1, audioHistory.length);
+        const baseline = {
+            mfcc: historyMeans.mfcc / divisor,
+            delta: historyMeans.delta / divisor,
+            delta2: historyMeans.delta2 / divisor,
+        };
+
+        const maxVal = Math.max(current.mfcc, current.delta, current.delta2, baseline.mfcc, baseline.delta, baseline.delta2, 1e-6);
+        const toPct = (v: number) => Number(((v / maxVal) * 100).toFixed(2));
+
+        return [
+            { name: 'MFCC', val: toPct(current.mfcc), baseline: toPct(baseline.mfcc) },
+            { name: 'Delta', val: toPct(current.delta), baseline: toPct(baseline.delta) },
+            { name: 'Delta2', val: toPct(current.delta2), baseline: toPct(baseline.delta2) },
+        ];
+    }, [result, audioHistory]);
+
+    const dailyTrendData = useMemo(() => {
+        return (dailyTrend || []).map((d) => ({
+            ...d,
+            label: new Date(d.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }),
+        }));
+    }, [dailyTrend]);
 
     // Real Audio Recording
     const startAudioRecording = async () => {
@@ -91,56 +177,50 @@ const VoiceAnalysis = () => {
         
         if (type === 'audio') {
             try {
-                const formData = new FormData();
-                
+                let fileToAnalyze: File;
+
                 if (selectedAudioFile) {
-                    formData.append('file', selectedAudioFile);
+                    fileToAnalyze = selectedAudioFile;
                 } else if (audioBlob) {
-                    formData.append('file', audioBlob, 'recording.wav');
+                    fileToAnalyze = new File([audioBlob], 'recording.wav', { type: 'audio/wav' });
                 } else {
                     alert("No audio selected or recorded!");
                     setIsProcessing(false);
                     return;
                 }
 
-                // User can potentially edit these later if we add inputs
-                formData.append('age', '60');
-                formData.append('tremor_score', '0');
-                formData.append('handwriting_score', '0');
-
-                const response = await fetch('http://localhost:5000/predict_audio', {
-                    method: 'POST',
-                    body: formData,
-                });
-
-                if (!response.ok) {
-                    const error = await response.json();
-                    throw new Error(error.error || 'Analysis failed');
-                }
-
-                const data = await response.json();
+                const data = await api.predictAudio(fileToAnalyze, user?.id);
                 
                 // Process backend response
                 setResult({
                     type: 'audio',
-                    confidence: (data.pd_probability * 100).toFixed(1),
-                    status: data.pd_probability > 0.5 ? 'Signs of Parkinson\'s Detected' : 'Healthy Range',
-                    details: data.pd_probability > 0.5 
-                        ? `Detected anomalies in voice patterns. Probability: ${(data.pd_probability * 100).toFixed(1)}%` 
-                        : 'Voice analysis shows normal patterns within healthy range.',
-                    features: data.top_features
+                    confidence: Number((data.prediction_confidence * 100).toFixed(1)),
+                    status: data.prediction_label === 'Parkinson' ? 'Parkinson Detected' : 'Normal Voice Pattern',
+                    details: data.prediction_label === 'Parkinson'
+                        ? `LSTM audio model indicates Parkinsonian voice traits with ${(data.pd_probability * 100).toFixed(1)}% probability.`
+                        : `LSTM audio model indicates normal pattern with ${(100 - data.pd_probability * 100).toFixed(1)}% confidence.`,
+                    predictionLabel: data.prediction_label,
+                    pd_probability: data.pd_probability,
+                    prediction_confidence: data.prediction_confidence,
+                    feature_means: data.feature_means || { mfcc_mean: 0, delta_mean: 0, delta2_mean: 0 },
+                    waveform_preview: data.waveform_preview || [],
+                    generated_at: data.generated_at,
+                    db_status: data.db_status,
+                });
+                await loadAudioHistory();
+                toast({
+                    title: "Audio Analysis Complete",
+                    description: `Prediction: ${data.prediction_label} (${(data.prediction_confidence * 100).toFixed(1)}% confidence).`,
                 });
 
             } catch (err) {
                 console.error("Analysis Error:", err);
-                // Fallback to sample results as requested
-                setResult({
-                    type: 'audio',
-                    confidence: 88.5,
-                    status: 'Early Signs Detected',
-                    details: 'Detected jitter anomalies in vowel phonation. (Sample Result - Backend Unavailable)',
-                    features: ['jitter_local', 'shimmer_local']
+                toast({
+                    title: "Audio Analysis Failed",
+                    description: "Could not process the uploaded audio with LSTM model.",
+                    variant: "destructive",
                 });
+                setResult(null);
             } finally {
                 setIsProcessing(false);
                 setSelectedAudioFile(null);
@@ -186,6 +266,73 @@ const VoiceAnalysis = () => {
         setVideoCaptured(true);
     };
 
+    const csvEscape = (value: any) => {
+        const str = String(value ?? '');
+        if (/[",\n]/.test(str)) return `"${str.replace(/"/g, '""')}"`;
+        return str;
+    };
+
+    const downloadAudioReport = () => {
+        if (!result || result.type !== 'audio') {
+            toast({
+                title: "No Audio Report",
+                description: "Run audio analysis first to download the report.",
+                variant: "destructive",
+            });
+            return;
+        }
+
+        try {
+            const now = new Date();
+            const rows: string[] = [];
+            const summary = [
+                ['Generated At', now.toISOString()],
+                ['Prediction Label', result.predictionLabel || ''],
+                ['PD Probability', Number(result.pd_probability || 0).toFixed(4)],
+                ['Prediction Confidence', Number(result.prediction_confidence || 0).toFixed(4)],
+                ['MFCC Mean', Number(result.feature_means?.mfcc_mean || 0).toFixed(6)],
+                ['Delta Mean', Number(result.feature_means?.delta_mean || 0).toFixed(6)],
+                ['Delta2 Mean', Number(result.feature_means?.delta2_mean || 0).toFixed(6)],
+                ['DB Status', result.db_status || ''],
+                [],
+            ];
+            summary.forEach((r) => rows.push(r.map(csvEscape).join(',')));
+
+            rows.push('Recent Audio History');
+            rows.push(['created_at', 'filename', 'prediction_label', 'prediction_confidence', 'pd_probability'].map(csvEscape).join(','));
+            audioHistory.slice(0, 100).forEach((item) => {
+                rows.push([
+                    item.created_at,
+                    item.filename,
+                    item.prediction_label,
+                    item.prediction_confidence,
+                    item.pd_probability,
+                ].map(csvEscape).join(','));
+            });
+
+            const blob = new Blob([rows.join('\n')], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `audio_lstm_report_${now.toISOString().replace(/[:.]/g, '-')}.csv`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+
+            toast({
+                title: "Report Downloaded",
+                description: "Audio LSTM report downloaded successfully.",
+            });
+        } catch (e: any) {
+            toast({
+                title: "Download Failed",
+                description: e?.message || "Could not generate report.",
+                variant: "destructive",
+            });
+        }
+    };
+
     return (
         <div className="container mx-auto px-6 py-10 min-h-screen">
              {/* Hidden Inputs */}
@@ -209,7 +356,7 @@ const VoiceAnalysis = () => {
                     Multimodal Analysis 
                 </h1>
                 <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-                    Advanced AI diagnostics using vocal biomarkers and computer vision gait analysis.
+                    Advanced AI diagnostics using vocal biomarkers and gait analysis.
                 </p>
             </div>
 
@@ -232,7 +379,7 @@ const VoiceAnalysis = () => {
                                 <CardTitle className="flex items-center text-primary">
                                     <Mic className="w-5 h-5 mr-2" /> Live Recording
                                 </CardTitle>
-                                <CardDescription>Record sustained vowel phonation ("aaaaah")</CardDescription>
+                                <CardDescription>Record vowel phonation ("aaaaah")</CardDescription>
                             </CardHeader>
                             <CardContent className="p-8 flex flex-col items-center justify-center min-h-[300px]">
                                 <div className={`w-32 h-32 rounded-full flex items-center justify-center mb-8 transition-all duration-500 ${isRecordingAudio ? 'bg-red-100 animate-pulse shadow-red-200' : 'bg-secondary'}`}>
@@ -456,7 +603,7 @@ const VoiceAnalysis = () => {
                  <div className="mt-12 text-center animate-in fade-in zoom-in duration-500">
                     <div className="w-20 h-20 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-6 shadow-glow"></div>
                     <h3 className="text-2xl font-bold mb-2 bg-clip-text text-transparent bg-gradient-to-r from-primary to-purple-600">Analyzing Biomarkers...</h3>
-                    <p className="text-muted-foreground">Running Dual-Stream LSTM & Computer Vision models</p>
+                    <p className="text-muted-foreground">Running LSTM model for temporal pattern analysis</p>
                  </div>
             )}
 
@@ -470,6 +617,35 @@ const VoiceAnalysis = () => {
                         <h2 className="text-3xl font-bold">{result.status}</h2>
                         <p className="text-lg text-muted-foreground mt-2 max-w-2xl mx-auto">{result.details}</p>
                      </div>
+
+                     {result.type === 'audio' && (
+                        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-2">
+                            <Card className="shadow-sm">
+                                <CardContent className="py-4">
+                                    <p className="text-xs text-muted-foreground">Total Audio Analyses</p>
+                                    <p className="text-2xl font-bold">{audioSummary.total}</p>
+                                </CardContent>
+                            </Card>
+                            <Card className="shadow-sm">
+                                <CardContent className="py-4">
+                                    <p className="text-xs text-muted-foreground">Normal</p>
+                                    <p className="text-2xl font-bold text-green-600">{audioSummary.normal}</p>
+                                </CardContent>
+                            </Card>
+                            <Card className="shadow-sm">
+                                <CardContent className="py-4">
+                                    <p className="text-xs text-muted-foreground">Parkinson</p>
+                                    <p className="text-2xl font-bold text-red-600">{audioSummary.parkinson}</p>
+                                </CardContent>
+                            </Card>
+                            <Card className="shadow-sm">
+                                <CardContent className="py-4">
+                                    <p className="text-xs text-muted-foreground">Avg Confidence</p>
+                                    <p className="text-2xl font-bold">{(audioSummary.average_confidence * 100).toFixed(1)}%</p>
+                                </CardContent>
+                            </Card>
+                        </div>
+                     )}
 
                      <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
                         {/* 1. Confidence Gauge */}
@@ -526,11 +702,7 @@ const VoiceAnalysis = () => {
                             <CardContent className="h-[300px]">
                                 <ResponsiveContainer width="100%" height="100%">
                                     {result.type === 'audio' ? (
-                                        <AreaChart data={[
-                                            { time: '0s', val: 20 }, { time: '1s', val: 40 }, { time: '2s', val: 35 }, { time: '3s', val: 70 },
-                                            { time: '4s', val: 45 }, { time: '5s', val: 60 }, { time: '6s', val: 30 },
-                                            { time: '7s', val: 50 }, { time: '8s', val: 25 }, { time: '9s', val: 45 }, { time: '10s', val: 65 }
-                                        ]}>
+                                        <AreaChart data={audioWaveData}>
                                             <defs>
                                                 <linearGradient id="colorWave" x1="0" y1="0" x2="0" y2="1">
                                                     <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.8}/>
@@ -540,7 +712,7 @@ const VoiceAnalysis = () => {
                                             <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 30px -10px rgba(0,0,0,0.2)' }} />
                                             <Area type="monotone" dataKey="val" stroke="#8b5cf6" fillOpacity={1} fill="url(#colorWave)" />
                                             <CartesianGrid strokeDasharray="3 3" vertical={false} strokeOpacity={0.1} />
-                                            <XAxis dataKey="time" axisLine={false} tickLine={false} />
+                                            <XAxis dataKey="time" axisLine={false} tickLine={false} hide />
                                         </AreaChart>
                                     ) : (
                                         <BarChart data={[
@@ -569,14 +741,11 @@ const VoiceAnalysis = () => {
                                      <div className="absolute inset-0 bg-gradient-to-tr from-transparent to-green-500/5 opacity-0 group-hover:opacity-100 transition-opacity" />
                                     <CardHeader>
                                         <CardTitle className="text-lg">Frequency Spectrum</CardTitle>
-                                        <CardDescription>Pitch stability analysis (Hz)</CardDescription>
+                                        <CardDescription>Stored audio analyses trend (last 14 days)</CardDescription>
                                     </CardHeader>
                                     <CardContent className="h-[250px]">
                                         <ResponsiveContainer width="100%" height="100%">
-                                            <AreaChart data={[
-                                                { f: '100Hz', amp: 30 }, { f: '200Hz', amp: 50 }, { f: '300Hz', amp: 45 }, 
-                                                { f: '400Hz', amp: 80 }, { f: '500Hz', amp: 60 }, { f: '600Hz', amp: 40 }
-                                            ]}>
+                                            <AreaChart data={dailyTrendData}>
                                                 <defs>
                                                     <linearGradient id="colorFreq" x1="0" y1="0" x2="0" y2="1">
                                                         <stop offset="5%" stopColor="#10b981" stopOpacity={0.8}/>
@@ -584,9 +753,9 @@ const VoiceAnalysis = () => {
                                                     </linearGradient>
                                                 </defs>
                                                 <CartesianGrid strokeDasharray="3 3" vertical={false} strokeOpacity={0.1} />
-                                                <XAxis dataKey="f" fontSize={12} tickLine={false} axisLine={false} />
+                                                <XAxis dataKey="label" fontSize={12} tickLine={false} axisLine={false} />
                                                 <Tooltip contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }} />
-                                                <Area type="monotone" dataKey="amp" stroke="#10b981" strokeWidth={3} fill="url(#colorFreq)" />
+                                                <Area type="monotone" dataKey="count" stroke="#10b981" strokeWidth={3} fill="url(#colorFreq)" />
                                             </AreaChart>
                                         </ResponsiveContainer>
                                     </CardContent>
@@ -597,15 +766,11 @@ const VoiceAnalysis = () => {
                                     <div className="absolute inset-0 bg-gradient-to-bl from-transparent to-red-500/5 opacity-0 group-hover:opacity-100 transition-opacity" />
                                     <CardHeader>
                                         <CardTitle className="text-lg">Vocal Quality Metrics</CardTitle>
-                                        <CardDescription>Comparison of key biomarkers vs Healthy Baseline</CardDescription>
+                                        <CardDescription>MFCC + Delta features: current sample vs historical baseline</CardDescription>
                                     </CardHeader>
                                     <CardContent className="h-[250px]">
                                         <ResponsiveContainer width="100%" height="100%">
-                                            <BarChart data={[
-                                                { name: 'Jitter (Micro)', val: 65, baseline: 30 },
-                                                { name: 'Shimmer (dB)', val: 55, baseline: 25 },
-                                                { name: 'HNR (dB)', val: 40, baseline: 80 },
-                                            ]} barGap={0} barCategoryGap="20%">
+                                            <BarChart data={featureBarsData} barGap={0} barCategoryGap="20%">
                                                 <CartesianGrid strokeDasharray="3 3" vertical={false} strokeOpacity={0.1} />
                                                 <XAxis dataKey="name" tickLine={false} axisLine={false} />
                                                 <Tooltip 
@@ -704,7 +869,7 @@ const VoiceAnalysis = () => {
                         >
                             Reset Analysis
                         </Button>
-                        <Button size="lg" className="bg-gradient-hero shadow-lg px-8">
+                        <Button size="lg" className="bg-gradient-hero shadow-lg px-8" onClick={downloadAudioReport}>
                             Download Detailed Clinical Report
                         </Button>
                      </div>

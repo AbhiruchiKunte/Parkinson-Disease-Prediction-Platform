@@ -28,6 +28,46 @@ export interface BatchPredictionResponse {
   failed_predictions: number;
 }
 
+export interface AudioPredictionResponse {
+  prediction_label: "Normal" | "Parkinson" | string;
+  prediction_confidence: number;
+  pd_probability: number;
+  prediction_status?: string;
+  feature_means?: {
+    mfcc_mean: number;
+    delta_mean: number;
+    delta2_mean: number;
+  };
+  waveform_preview?: number[];
+  generated_at?: string;
+  db_status?: string;
+}
+
+export interface AudioHistoryEntry {
+  created_at: string;
+  filename: string;
+  prediction_label: string;
+  prediction_confidence: number;
+  pd_probability: number;
+  feature_means: {
+    mfcc_mean: number;
+    delta_mean: number;
+    delta2_mean: number;
+  };
+  waveform_preview: number[];
+}
+
+export interface AudioHistoryResponse {
+  entries: AudioHistoryEntry[];
+  summary: {
+    total: number;
+    normal: number;
+    parkinson: number;
+    average_confidence: number;
+  };
+  daily_trend: { date: string; count: number }[];
+}
+
 export interface HealthCheckResponse {
   status: string;
   model_loaded: boolean;
@@ -135,10 +175,13 @@ export const api = {
     }
   },
 
-  predictAudio: async (file: File) => {
+  predictAudio: async (file: File, userId?: string): Promise<AudioPredictionResponse> => {
     try {
       const formData = new FormData();
       formData.append('file', file);
+      if (userId) {
+        formData.append('user_id', userId);
+      }
       
       const response = await axios.post(`${API_Base}/predict_audio`, formData, {
         headers: {
@@ -148,6 +191,18 @@ export const api = {
       return response.data;
     } catch (error) {
       console.error("Audio analysis error:", error);
+      throw error;
+    }
+  },
+
+  getAudioHistory: async (userId?: string): Promise<AudioHistoryResponse> => {
+    try {
+      const response = await axios.get(`${API_Base}/audio_history`, {
+        params: userId ? { user_id: userId } : {},
+      });
+      return response.data;
+    } catch (error) {
+      console.error("Audio history error:", error);
       throw error;
     }
   },
