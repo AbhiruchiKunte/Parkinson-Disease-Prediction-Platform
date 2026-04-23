@@ -15,6 +15,9 @@ export interface PredictionResponse {
   };
   top_features: { name: string; value: number }[];
   prediction_status: string;
+  insights?: string[];
+  insight_source?: string;
+  generated_at?: string;
   db_status?: string;
 }
 

@@ -7,7 +7,7 @@ import { Slider } from '@/components/ui/slider';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext'; // Import useAuth
-import { Activity, User, HandMetal, Mic } from 'lucide-react';
+import { Activity, User, HandMetal, Mic, Sparkles, Download } from 'lucide-react';
 import { api, PredictionResponse } from '@/lib/api';
 import { Brain } from 'lucide-react';
 import { 
@@ -108,8 +108,6 @@ const QuestionnaireForm = () => {
       const response = await api.predict(apiData, user?.id); // Pass user.id
       setResult(response);
       
-      setResult(response);
-      
       if (response.db_status && response.db_status.startsWith('failed')) {
           toast({
             title: "Analysis Complete (Not Saved)",
@@ -140,6 +138,94 @@ const QuestionnaireForm = () => {
   const handleReset = () => {
     setResult(null);
     setFormData(INITIAL_STATE);
+  };
+
+  const csvEscape = (value: any) => {
+    const str = String(value ?? '');
+    if (/[",\n]/.test(str)) {
+      return `"${str.replace(/"/g, '""')}"`;
+    }
+    return str;
+  };
+
+  const downloadAssessmentReport = () => {
+    if (!result) {
+      toast({
+        title: "No Report Available",
+        description: "Analyze an assessment first to download a report.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      const generatedAt = new Date();
+      const summaryRows = [
+        ['Report Generated At', generatedAt.toISOString()],
+        ['Assessment Generated At', result.generated_at || ''],
+        ['Risk Probability (%)', (result.pd_probability * 100).toFixed(2)],
+        ['Prediction Status', result.prediction_status || (result.pd_probability >= 0.5 ? 'High Risk' : 'Low Risk')],
+        ['RF Probability (%)', ((result.pd_probability_rf || 0) * 100).toFixed(2)],
+        ['SVM Probability (%)', ((result.pd_probability_svm || 0) * 100).toFixed(2)],
+        ['KNN Probability (%)', ((result.pd_probability_knn || 0) * 100).toFixed(2)],
+        ['DT Probability (%)', ((result.pd_probability_dt || 0) * 100).toFixed(2)],
+        ['Insight Source', result.insight_source || ''],
+        [],
+      ];
+
+      const inputHeader = ['age', 'tremor_score', 'handwriting_score', 'jitter_local', 'shimmer_local', 'bradykinesia', 'rigidity'];
+      const inputRow = [
+        formData.age === '' ? '' : formData.age,
+        formData.tremor_score,
+        formData.handwriting_score,
+        formData.jitter_local / 100,
+        formData.shimmer_local / 100,
+        formData.bradykinesia,
+        formData.rigidity,
+      ];
+
+      const featureHeader = ['feature', 'contribution'];
+      const featureRows = (result.top_features || []).map((f) => [f.name, f.value]);
+
+      const insightHeader = ['insight_index', 'insight_text'];
+      const insightRows = (result.insights || []).slice(0, 3).map((ins, idx) => [idx + 1, ins]);
+
+      const lines: string[] = [];
+      summaryRows.forEach((r) => lines.push(r.map(csvEscape).join(',')));
+      lines.push('Input Features');
+      lines.push(inputHeader.map(csvEscape).join(','));
+      lines.push(inputRow.map(csvEscape).join(','));
+      lines.push('');
+      lines.push('Top Feature Contributions');
+      lines.push(featureHeader.map(csvEscape).join(','));
+      featureRows.forEach((r) => lines.push(r.map(csvEscape).join(',')));
+      lines.push('');
+      lines.push('Generated Insights');
+      lines.push(insightHeader.map(csvEscape).join(','));
+      insightRows.forEach((r) => lines.push(r.map(csvEscape).join(',')));
+
+      const csvContent = lines.join('\n');
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = `assessment_report_${generatedAt.toISOString().replace(/[:.]/g, '-')}.csv`;
+      document.body.appendChild(anchor);
+      anchor.click();
+      document.body.removeChild(anchor);
+      URL.revokeObjectURL(url);
+
+      toast({
+        title: "Report Downloaded",
+        description: "Assessment analysis report downloaded successfully.",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Download Failed",
+        description: error?.message || "Could not generate assessment report.",
+        variant: "destructive",
+      });
+    }
   };
 
   return (
@@ -755,7 +841,32 @@ const QuestionnaireForm = () => {
                     </div>
 
 
-                    <div className="flex justify-center pt-6">
+                    <div className="grid gap-4 md:grid-cols-3 pt-2">
+                        {(result.insights || []).slice(0, 3).map((insight, idx) => (
+                            <Card key={idx} className="bg-card/60 border-primary/20 shadow-sm">
+                                <CardHeader className="pb-2">
+                                    <CardTitle className="text-sm flex items-center gap-2">
+                                        <Sparkles className="h-4 w-4 text-primary" />
+                                        Insight {idx + 1}
+                                    </CardTitle>
+                                </CardHeader>
+                                <CardContent>
+                                    <p className="text-sm text-muted-foreground">{insight}</p>
+                                </CardContent>
+                            </Card>
+                        ))}
+                    </div>
+
+                    <div className="flex flex-col sm:flex-row justify-center gap-3 pt-6">
+                        <Button 
+                            variant="default"
+                            size="lg"
+                            onClick={downloadAssessmentReport}
+                            className="px-8 font-semibold gap-2"
+                        >
+                            <Download className="h-4 w-4" />
+                            Download Assessment Report
+                        </Button>
                         <Button 
                             variant="outline" 
                             size="lg" 

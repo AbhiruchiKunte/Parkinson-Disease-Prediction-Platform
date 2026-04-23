@@ -1,6 +1,7 @@
 from flask import jsonify
 import pandas as pd
 from .batch_helper import process_csv_batch, parse_docx_to_df, parse_pdf_to_df, parse_doc_to_df
+import re
 
 def parse_file_data(request):
     """
@@ -64,6 +65,7 @@ import numpy as np
 import os
 import uuid
 import logging
+from datetime import datetime, timezone
 from supabase import create_client, Client
 from dotenv import load_dotenv
 
@@ -89,6 +91,91 @@ if url and key:
 
 # Initialize Model Handler
 model_handler = ModelHandler()
+_assessment_insight_generator = None
+_assessment_insight_model = None
+
+
+def _parse_insight_text(raw_text):
+    lines = raw_text.splitlines()
+    parsed = []
+    for line in lines:
+        clean = line.strip().lstrip("-").lstrip("*").strip()
+        clean = re.sub(r"^\d+\.\s*", "", clean)
+        if clean and len(clean) > 18:
+            parsed.append(clean)
+
+    deduped = []
+    seen = set()
+    for insight in parsed:
+        k = insight.lower()
+        if k not in seen:
+            seen.add(k)
+            deduped.append(insight)
+        if len(deduped) == 3:
+            break
+    return deduped
+
+
+def _fallback_assessment_insights(result, features):
+    probability = float(result.get('pd_probability', 0.0) or 0.0)
+    risk = "high" if probability >= 0.65 else "moderate" if probability >= 0.35 else "low"
+    top_features = result.get("top_features", []) or []
+    dominant = top_features[0].get("name", "tremor_score").replace('_', ' ') if top_features else "tremor score"
+
+    return [
+        f"Overall risk appears {risk} with PD probability at {probability * 100:.1f}% for this assessment.",
+        f"The strongest contributor in this case is {dominant}, indicating this feature drove the model decision most.",
+        f"Model agreement check: RF {float(result.get('pd_probability_rf', 0) or 0) * 100:.1f}%, SVM {float(result.get('pd_probability_svm', 0) or 0) * 100:.1f}%, KNN {float(result.get('pd_probability_knn', 0) or 0) * 100:.1f}%, DT {float(result.get('pd_probability_dt', 0) or 0) * 100:.1f}%.",
+    ]
+
+
+def _generate_assessment_insights(result, features):
+    global _assessment_insight_generator, _assessment_insight_model
+
+    model_id = os.environ.get("HF_INSIGHTS_MODEL", "meta-llama/Llama-3.1-8B-Instruct")
+    hf_token = os.environ.get("HF_TOKEN") or os.environ.get("HUGGINGFACEHUB_API_TOKEN")
+
+    if not hf_token:
+        return _fallback_assessment_insights(result, features), "fallback"
+
+    prompt = (
+        "You are a clinical ML assistant. Generate exactly 3 concise actionable insights for one Parkinson's assessment.\n"
+        f"PD probability: {float(result.get('pd_probability', 0) or 0) * 100:.2f}%\n"
+        f"RF: {float(result.get('pd_probability_rf', 0) or 0) * 100:.2f}%\n"
+        f"SVM: {float(result.get('pd_probability_svm', 0) or 0) * 100:.2f}%\n"
+        f"KNN: {float(result.get('pd_probability_knn', 0) or 0) * 100:.2f}%\n"
+        f"DT: {float(result.get('pd_probability_dt', 0) or 0) * 100:.2f}%\n"
+        f"Age: {features.get('age')}, Tremor: {features.get('tremor_score')}, Handwriting: {features.get('handwriting_score')}, "
+        f"Jitter: {features.get('jitter_local')}, Shimmer: {features.get('shimmer_local')}, Bradykinesia: {features.get('bradykinesia', 0)}, Rigidity: {features.get('rigidity', 0)}.\n"
+        "Format:\n1. ...\n2. ...\n3. ..."
+    )
+
+    try:
+        from transformers import pipeline
+
+        if _assessment_insight_generator is None or _assessment_insight_model != model_id:
+            _assessment_insight_generator = pipeline(
+                "text-generation",
+                model=model_id,
+                token=hf_token,
+            )
+            _assessment_insight_model = model_id
+
+        output = _assessment_insight_generator(
+            prompt,
+            max_new_tokens=180,
+            do_sample=False,
+            return_full_text=False,
+        )
+        raw_text = output[0].get("generated_text", "") if output else ""
+        insights = _parse_insight_text(raw_text)
+        if len(insights) != 3:
+            raise ValueError("Could not parse exactly 3 insights")
+
+        return insights, f"huggingface:{model_id}"
+    except Exception as e:
+        logger.warning(f"Single-assessment HF insight generation failed. Using fallback. Error: {e}")
+        return _fallback_assessment_insights(result, features), "fallback"
 
 def get_model_info():
     """Get model information and expected features"""
@@ -117,6 +204,11 @@ def predict_single(data):
         
         # Make prediction
         result = model_handler.predict_single(features)
+
+        insights, insight_source = _generate_assessment_insights(result, features)
+        result["insights"] = insights[:3]
+        result["insight_source"] = insight_source
+        result["generated_at"] = datetime.now(timezone.utc).isoformat()
         
         # Save to DB if user_id is provided
         if user_id and supabase_admin:
