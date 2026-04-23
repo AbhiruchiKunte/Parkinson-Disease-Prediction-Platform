@@ -7,51 +7,134 @@ import librosa
 import os
 import sys
 import importlib
+import re
+
+
+def _normalize_key(key):
+    key = str(key).strip().lower()
+    key = re.sub(r'[^a-z0-9]+', '_', key)
+    return key.strip('_')
+
+
+def _extract_numeric(value):
+    if value is None:
+        return None
+    if isinstance(value, (int, float, np.number)):
+        return float(value)
+
+    text = str(value).strip()
+    if not text:
+        return None
+
+    text = text.replace(',', '.')
+    match = re.search(r'-?\d+(?:\.\d+)?', text)
+    if not match:
+        return None
+
+    try:
+        return float(match.group(0))
+    except Exception:
+        return None
+
+
+def _map_qualitative_score(value):
+    if value is None:
+        return None
+    text = str(value).strip().lower()
+    mapping = {
+        'normal': 0.5,
+        'mild': 1.5,
+        'moderate': 2.5,
+        'severe': 3.5,
+        'very_severe': 4.0,
+        'very severe': 4.0,
+    }
+    return mapping.get(text)
 
 def preprocess_batch_row(row):
     """
     Normalize row keys and apply fuzzy mapping to match model expected features.
     Returns a dictionary with model-compatible feature names.
     """
-    # Standard model features
-    MODEL_FEATURES = ['age', 'tremor_score', 'handwriting_score', 'jitter_local', 'shimmer_local']
-    
-    MAPPING = {
-        'jitter_percent': 'jitter_local',
-        'jitter(%)': 'jitter_local',
-        'mdvp:jitter(%)': 'jitter_local',
-        'abs_jitter': 'jitter_local',
-        
-        'shimmer_apq3': 'shimmer_local',
-        'mdvp:shimmer': 'shimmer_local',
-        'shimmer_db': 'shimmer_local',
-        
-        'subject_age': 'age',
-        'patiend_age': 'age'
+    # Keep core model features + clinically useful extras
+    MODEL_FEATURES = [
+        'age',
+        'tremor_score',
+        'handwriting_score',
+        'jitter_local',
+        'shimmer_local',
+        'bradykinesia',
+        'rigidity',
+    ]
+
+    aliases = {
+        'age': ['age', 'subject_age', 'patient_age', 'years', 'years_old'],
+        'tremor_score': ['tremor_score', 'tremor', 'rest_tremor', 'tremor_frequency', 'tremor_f'],
+        'handwriting_score': ['handwriting_score', 'handwriting', 'micrographia', 'spiral_score', 'spiral_error', 'drawing_score'],
+        'jitter_local': [
+            'jitter_local', 'jitter', 'jitter_percent', 'jitter_perc', 'jitter_abs',
+            'mdvp_jitter', 'mdvp_jitter_percent', 'jit'
+        ],
+        'shimmer_local': [
+            'shimmer_local', 'shimmer', 'shimmer_db', 'shimmer_apq3', 'shimmer_apq5',
+            'mdvp_shimmer', 'shim'
+        ],
+        'bradykinesia': ['bradykinesia', 'slowness', 'writing_speed', 'stroke_velocity', 'stroke_v'],
+        'rigidity': ['rigidity', 'stiffness', 'drawing_pressure', 'pen_lift', 'pen_lift_count', 'drawing_p'],
     }
     
     # Defaults for missing clinical data (if dataset is purely acoustic)
     DEFAULTS = {
-        'age': 60.0,             # Average risk age
-        'tremor_score': 0.0,     # Assume early stage/no visible tremor if not recorded
-        'handwriting_score': 0.0 # Assume normal if not recorded
+        'age': 60.0,
+        'tremor_score': 0.0,
+        'handwriting_score': 0.0,
+        'jitter_local': 0.0,
+        'shimmer_local': 0.0,
+        'bradykinesia': 0.0,
+        'rigidity': 0.0,
     }
-    
-    # Normalize row keys
-    row_norm = {k.lower().strip(): v for k, v in row.items()}
+
+    # Normalize row keys once
+    row_norm = {_normalize_key(k): v for k, v in row.items()}
     processed_features = {}
-    
-    # 1. Direct mapping & Aliases
-    for target in MODEL_FEATURES:
+
+    def pick_value(target):
+        # 1. direct key
         if target in row_norm:
-            processed_features[target] = row_norm[target]
-        else:
-            # Check aliases
-            for alias, map_target in MAPPING.items():
-                if map_target == target and alias in row_norm:
-                    processed_features[target] = row_norm[alias]
-                    break
-    
+            return row_norm[target]
+
+        candidates = aliases.get(target, [])
+
+        # 2. exact alias
+        for alias in candidates:
+            alias_key = _normalize_key(alias)
+            if alias_key in row_norm:
+                return row_norm[alias_key]
+
+        # 3. fuzzy alias containment
+        for key, value in row_norm.items():
+            for alias in candidates:
+                alias_key = _normalize_key(alias)
+                if alias_key and (alias_key in key or key in alias_key):
+                    return value
+        return None
+
+    # 1. Extract matched values
+    for target in MODEL_FEATURES:
+        raw = pick_value(target)
+        if raw is not None:
+            numeric = _extract_numeric(raw)
+            if numeric is not None:
+                processed_features[target] = numeric
+            elif target in ('handwriting_score', 'tremor_score', 'bradykinesia', 'rigidity'):
+                qualitative = _map_qualitative_score(raw)
+                if qualitative is not None:
+                    processed_features[target] = qualitative
+                else:
+                    processed_features[target] = raw
+            else:
+                processed_features[target] = raw
+
     # 2. Apply Defaults for missing keys
     used_defaults = []
     for target in MODEL_FEATURES:
@@ -146,6 +229,7 @@ def process_csv_batch(df, model_handler):
                 'input_data': raw_dict, 
                 'features_used': features,
                 'prediction': prediction,
+                'pd_probability': prediction.get('pd_probability'),
                 'error': None
             })
             successful_predictions += 1

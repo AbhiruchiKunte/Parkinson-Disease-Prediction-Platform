@@ -186,6 +186,117 @@ const CsvUpload = () => {
         fileInputRef.current.value = '';
       }
     };
+
+    const toNumber = (value: any, fallback = 0) => {
+      const n = Number(value);
+      return Number.isFinite(n) ? n : fallback;
+    };
+
+    const csvEscape = (value: any) => {
+      const str = String(value ?? '');
+      if (/[",\n]/.test(str)) {
+        return `"${str.replace(/"/g, '""')}"`;
+      }
+      return str;
+    };
+
+    const downloadBatchReport = () => {
+      if (!batchResults) {
+        toast({
+          title: "No Report Available",
+          description: "Run batch processing first to generate a report.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      try {
+        const generatedAt = new Date();
+        const safeBaseName = (selectedFile?.name || 'batch_report')
+          .replace(/\.[^/.]+$/, '')
+          .replace(/[^a-zA-Z0-9_-]+/g, '_');
+        const timestamp = generatedAt.toISOString().replace(/[:.]/g, '-');
+
+        const summaryRows = [
+          ['Report Generated At', generatedAt.toISOString()],
+          ['Source File', selectedFile?.name || 'N/A'],
+          ['Total Records', batchResults.total_records],
+          ['Successful Predictions', batchResults.successful_predictions],
+          ['Failed Predictions', batchResults.failed_predictions],
+          [],
+        ];
+
+        const detailHeader = [
+          'row_index',
+          'status',
+          'pd_probability',
+          'prediction_status',
+          'age',
+          'tremor_score',
+          'handwriting_score',
+          'jitter_local',
+          'shimmer_local',
+          'bradykinesia',
+          'rigidity',
+          'error',
+        ];
+
+        const detailRows = (batchResults.predictions || []).map((row: any, idx: number) => {
+          const prediction = row?.prediction || {};
+          const features = row?.features_used || row?.features || row?.input || {};
+          const pdProbability = toNumber(
+            row?.pd_probability ?? prediction?.pd_probability,
+            NaN
+          );
+          const status = row?.error ? 'failed' : 'success';
+          const predictionStatus =
+            prediction?.prediction_status ||
+            (Number.isFinite(pdProbability) ? (pdProbability >= 0.5 ? 'High Risk' : 'Low Risk') : '');
+
+          return [
+            row?.row_index ?? row?.row ?? idx + 1,
+            status,
+            Number.isFinite(pdProbability) ? pdProbability.toFixed(4) : '',
+            predictionStatus,
+            features?.age ?? '',
+            features?.tremor_score ?? '',
+            features?.handwriting_score ?? '',
+            features?.jitter_local ?? '',
+            features?.shimmer_local ?? '',
+            features?.bradykinesia ?? '',
+            features?.rigidity ?? '',
+            row?.error || '',
+          ];
+        });
+
+        const lines: string[] = [];
+        summaryRows.forEach((r) => lines.push(r.map(csvEscape).join(',')));
+        lines.push(detailHeader.map(csvEscape).join(','));
+        detailRows.forEach((r) => lines.push(r.map(csvEscape).join(',')));
+
+        const csvContent = lines.join('\n');
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `${safeBaseName}_analysis_report_${timestamp}.csv`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+
+        toast({
+          title: "Report Downloaded",
+          description: "Batch analysis report downloaded successfully.",
+        });
+      } catch (err: any) {
+        toast({
+          title: "Download Failed",
+          description: err?.message || "Could not generate report file.",
+          variant: "destructive",
+        });
+      }
+    };
   
     return (
       <section id="upload" className="py-16 bg-secondary/30">
@@ -687,7 +798,7 @@ const CsvUpload = () => {
                        </div>
                        
                   <div className="flex justify-center">
-                      <Button className="bg-gradient-hero shadow-lg gap-2" size="lg">
+                      <Button className="bg-gradient-hero shadow-lg gap-2" size="lg" onClick={downloadBatchReport}>
                           <Download className="w-4 h-4" /> Download Full Analysis Report
                       </Button>
                   </div>

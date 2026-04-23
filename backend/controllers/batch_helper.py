@@ -11,6 +11,121 @@ except ImportError:
 
 import pandas as pd
 import io
+import re
+
+
+def _normalize_column_name(name):
+    raw = str(name).strip().lower()
+    raw = re.sub(r'[^a-z0-9]+', '_', raw).strip('_')
+
+    alias_map = {
+        'patientage': 'age',
+        'subject_age': 'age',
+        'years_old': 'age',
+        'tremor': 'tremor_score',
+        'rest_tremor': 'tremor_score',
+        'handwriting': 'handwriting_score',
+        'micrographia': 'handwriting_score',
+        'jitter': 'jitter_local',
+        'jitter_percent': 'jitter_local',
+        'jitter_perc': 'jitter_local',
+        'mdvp_jitter': 'jitter_local',
+        'shimmer': 'shimmer_local',
+        'shimmer_db': 'shimmer_local',
+        'mdvp_shimmer': 'shimmer_local',
+    }
+    return alias_map.get(raw, raw)
+
+
+def _normalize_dataframe(df):
+    if df is None or df.empty:
+        return df
+    df.columns = [_normalize_column_name(c) for c in df.columns]
+    return df
+
+
+def _extract_key_value_records(text):
+    """
+    Extract multiple patient-like records from free text blocks.
+    """
+    patterns = {
+        'age': [r'age\s*[:=-]?\s*(\d{1,3})', r'(\d{1,3})\s*years?\s*old'],
+        'tremor_score': [r'tremor(?:\s*score)?\s*[:=-]?\s*(\d+(?:\.\d+)?)'],
+        'handwriting_score': [r'handwriting(?:\s*score)?\s*[:=-]?\s*(\d+(?:\.\d+)?)', r'micrographia\s*[:=-]?\s*(\d+(?:\.\d+)?)'],
+        'jitter_local': [r'jitter(?:\s*local)?(?:\s*\(abs\)|\s*%)?\s*[:=-]?\s*(\d+(?:\.\d+)?)'],
+        'shimmer_local': [r'shimmer(?:\s*local)?(?:\s*\(db\)|\s*%)?\s*[:=-]?\s*(\d+(?:\.\d+)?)'],
+        'bradykinesia': [r'bradykinesia\s*[:=-]?\s*(\d+(?:\.\d+)?)'],
+        'rigidity': [r'rigidity\s*[:=-]?\s*(\d+(?:\.\d+)?)'],
+    }
+
+    blocks = re.split(
+        r'\n\s*\n+|(?=patient\s*(?:id|no|number)?\s*[:#-]?\s*[a-z0-9_-]+)',
+        text,
+        flags=re.IGNORECASE
+    )
+
+    records = []
+    for block in blocks:
+        block = block.strip()
+        if not block:
+            continue
+        row = {}
+        for field, regex_list in patterns.items():
+            for regex in regex_list:
+                match = re.search(regex, block, re.IGNORECASE)
+                if match:
+                    row[field] = match.group(1)
+                    break
+        # Keep only meaningful rows
+        if len(row) >= 3:
+            records.append(row)
+
+    if not records:
+        # Last chance: parse entire text as one record if it contains enough fields
+        row = {}
+        for field, regex_list in patterns.items():
+            for regex in regex_list:
+                match = re.search(regex, text, re.IGNORECASE)
+                if match:
+                    row[field] = match.group(1)
+                    break
+        if len(row) >= 3:
+            records.append(row)
+
+    return pd.DataFrame(records) if records else pd.DataFrame()
+
+
+def _extract_pd_table_rows(text):
+    """
+    Fallback extractor for PDF/DOC text where table headers are broken but
+    data rows are still readable, e.g.:
+    PD_001 0.42 0.71 0.56 4.8 0.59 18 Moderate
+    """
+    lines = [ln.strip() for ln in text.replace('\r', '\n').split('\n') if ln.strip()]
+    row_pattern = re.compile(
+        r'^(?P<patient>[a-z]{1,4}[_\-]?\d{2,6})\s+'
+        r'(?P<spiral_error>-?\d+(?:\.\d+)?)\s+'
+        r'(?P<drawing_pressure>-?\d+(?:\.\d+)?)\s+'
+        r'(?P<stroke_velocity>-?\d+(?:\.\d+)?)\s+'
+        r'(?P<tremor_frequency>-?\d+(?:\.\d+)?)\s+'
+        r'(?P<writing_speed>-?\d+(?:\.\d+)?)\s+'
+        r'(?P<pen_lift_count>-?\d+(?:\.\d+)?)\s+'
+        r'(?P<handwriting_score>[a-zA-Z]+)$',
+        re.IGNORECASE,
+    )
+
+    records = []
+    for line in lines:
+        match = row_pattern.match(line)
+        if not match:
+            continue
+        row = match.groupdict()
+        row["patient_id"] = row.pop("patient")
+        records.append(row)
+
+    if records:
+        return _normalize_dataframe(pd.DataFrame(records))
+    return pd.DataFrame()
 
 
 def parse_text_table(text):
@@ -19,66 +134,50 @@ def parse_text_table(text):
     Returns DataFrame or None if no table structure found.
     Handles pandas read_csv failures by falling back to manual line parsing.
     """
-    import io
-    import re
-    
     # Pre-process text to remove common garbage or empty lines
     lines = [line.strip() for line in text.replace('\r', '\n').split('\n') if line.strip()]
     if len(lines) < 2:
         return None
-        
-    # Strategy 1: strict pandas read_csv
-    try:
-        clean_text = '\n'.join(lines)
-        df = pd.read_csv(io.StringIO(clean_text), sep=r'\s+', engine='python')
-        if len(df) > 0 and len(df.columns) > 1:
-            return df
-    except Exception:
-        pass
+
+    clean_text = '\n'.join(lines)
+
+    # Strategy 1: delimiter inference across common table separators
+    separators = [',', ';', '\t', '|', r'\s{2,}']
+    for sep in separators:
+        try:
+            df = pd.read_csv(io.StringIO(clean_text), sep=sep, engine='python')
+            if len(df) > 0 and len(df.columns) > 1:
+                return _normalize_dataframe(df)
+        except Exception:
+            continue
 
     # Strategy 2: Manual Line Parsing (Robust Fallback)
-    # Useful when headers are messy or pd.read_csv trips on a single bad line
     try:
         data = []
         headers = []
         header_idx = -1
-        
-        # Keywords to identify the header row
+
+        # Keywords to identify likely header row
         keywords = ['patient', 'id', 'age', 'tremor', 'handwriting', 'spiral', 'drawing', 'pressure', 'velocity', 'speed', 'jitter', 'shimmer', 'score', 'count']
-        
+
         # Find header line
         for i, line in enumerate(lines):
             lower_line = line.lower()
-            # If line has at least 2 keywords, treat as header
             matches = sum(1 for k in keywords if k in lower_line)
-            if matches >= 2:
-                # Basic tokenization
-                headers = re.split(r'\s+', line)
+            if matches >= 2 and len(re.split(r'[,\t;|]|\s{2,}', line)) >= 2:
+                headers = [h.strip() for h in re.split(r'[,\t;|]|\s{2,}', line) if h.strip()]
                 header_idx = i
                 break
-        
+
         if header_idx != -1 and headers:
-            num_cols = len(headers)
-            # Parse subsequent lines
             for line in lines[header_idx+1:]:
-                parts = re.split(r'\s+', line)
-                
-                # Perfect match
-                if len(parts) == num_cols:
-                    data.append(dict(zip(headers, parts)))
-                # Handle cases where ID might have a space "PD 001" -> 2 tokens, makes len = num_cols + 1
-                elif len(parts) == num_cols + 1:
-                    # Heuristic: Merge first two tokens? Or last two?
-                    # Usually Patient ID is first.
-                    # Lets try to see if merging first two makes sense? 
-                    # For now, simplistic approach: drop extra tokens or skip.
-                    # Better: Skip rigid check, try to aligning best effort.
-                    # Just skip for safety to avoid misalignment.
-                    pass
-                
+                parts = [p.strip() for p in re.split(r'[,\t;|]|\s{2,}', line) if p.strip()]
+                if len(parts) >= len(headers):
+                    data.append(dict(zip(headers, parts[:len(headers)])))
+
             if data:
-                return pd.DataFrame(data)
-                
+                return _normalize_dataframe(pd.DataFrame(data))
+
     except Exception as e:
         print(f"Manual parsing failed: {e}")
         pass
@@ -90,6 +189,7 @@ def parse_docx_to_df(file_stream):
     if not Document:
         raise ImportError("python-docx is not installed.")
     
+    file_stream.seek(0)
     document = Document(file_stream)
     data = []
     
@@ -99,7 +199,7 @@ def parse_docx_to_df(file_stream):
         for i, row in enumerate(table.rows):
             row_data = [cell.text.strip() for cell in row.cells]
             if i == 0:
-                headers = [h.lower() for h in row_data]
+                headers = [_normalize_column_name(h) for h in row_data]
             else:
                 # Create dict based on headers
                 if len(row_data) == len(headers):
@@ -107,26 +207,31 @@ def parse_docx_to_df(file_stream):
     
     # If tables found, return DF
     if data:
-        return pd.DataFrame(data)
+        return _normalize_dataframe(pd.DataFrame(data))
         
     # Strategy 2: Look for tabular text in paragraphs (fallback for "Text Tables")
     full_text = '\n'.join([p.text for p in document.paragraphs])
     df_table = parse_text_table(full_text)
     if df_table is not None:
-        return df_table
+        return _normalize_dataframe(df_table)
 
-    # Strategy 3: Key-Value pairs (fallback)
+    # Strategy 3: Multiple key/value records
+    kv_df = _extract_key_value_records(full_text)
+    if not kv_df.empty:
+        return _normalize_dataframe(kv_df)
+
+    # Strategy 4: Single Key-Value pairs (fallback)
     row_dict = {}
     for para in document.paragraphs:
         text = para.text.strip()
         if ':' in text:
             parts = text.split(':', 1)
-            key = parts[0].strip().lower()
+            key = _normalize_column_name(parts[0].strip())
             val = parts[1].strip()
             row_dict[key] = val
     
     if row_dict:
-        return pd.DataFrame([row_dict])
+        return _normalize_dataframe(pd.DataFrame([row_dict]))
         
     return pd.DataFrame() # Empty if nothing found
 
@@ -153,13 +258,21 @@ def parse_doc_to_df(file_stream):
         # Strategy A: Text Table
         df_table = parse_text_table(text)
         if df_table is not None:
-            return df_table
+            return _normalize_dataframe(df_table)
+
+        # Strategy B: Row-pattern extraction from flattened table text
+        row_df = _extract_pd_table_rows(text)
+        if not row_df.empty:
+            return _normalize_dataframe(row_df)
+
+        # Strategy C: Multi-record key/value extraction
+        kv_df = _extract_key_value_records(text)
+        if not kv_df.empty:
+            return _normalize_dataframe(kv_df)
             
-        # Strategy B: Key-Value Regex (Legacy Fallback)
+        # Strategy D: Key-Value Regex (Legacy Fallback)
         # Look for keywords in the raw text
         row_dict = {}
-        # Simple regex-like search for "Age... 60"
-        import re
         
         # Define patterns for our fields
         patterns = {
@@ -180,7 +293,7 @@ def parse_doc_to_df(file_stream):
                     break
         
         if row_dict:
-            return pd.DataFrame([row_dict])
+            return _normalize_dataframe(pd.DataFrame([row_dict]))
             
     except Exception as e:
         print(f"Doc parsing error: {e}")
@@ -196,15 +309,25 @@ def parse_pdf_to_df(file_stream):
     reader = PdfReader(file_stream)
     text = ""
     for page in reader.pages:
-        text += page.extract_text() + "\n"
+        page_text = page.extract_text() or ""
+        text += page_text + "\n"
     
     # Strategy 1: Text Table (Generic whitespace separated)
     df_table = parse_text_table(text)
     if df_table is not None:
-        return df_table
+        return _normalize_dataframe(df_table)
 
-    # Strategy 2: Robust Key-Value Parsing (Fallback)
-    import re
+    # Strategy 2: Row-pattern extraction from flattened table text
+    row_df = _extract_pd_table_rows(text)
+    if not row_df.empty:
+        return _normalize_dataframe(row_df)
+
+    # Strategy 3: Multi-record key/value extraction
+    kv_df = _extract_key_value_records(text)
+    if not kv_df.empty:
+        return _normalize_dataframe(kv_df)
+
+    # Strategy 4: Robust Key-Value Parsing (Single-record fallback)
     row_dict = {}
     
     # Common patterns for medical reports
@@ -231,7 +354,7 @@ def parse_pdf_to_df(file_stream):
                 break
                 
     if row_dict:
-        return pd.DataFrame([row_dict])
+        return _normalize_dataframe(pd.DataFrame([row_dict]))
         
     return pd.DataFrame()
 
