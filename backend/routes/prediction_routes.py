@@ -1,5 +1,6 @@
 from flask import Blueprint, request
 from controllers.prediction_controller import predict_single, predict_batch, predict_audio_file, get_model_info, get_benchmarks, parse_file_data
+from controllers.dashboard_controller import get_dashboard_summary
 
 prediction_bp = Blueprint('prediction_bp', __name__)
 
@@ -26,3 +27,7 @@ def predict_audio_route():
 @prediction_bp.route('/benchmarks', methods=['GET'])
 def benchmarks_route():
     return get_benchmarks()
+
+@prediction_bp.route('/dashboard/summary', methods=['GET'])
+def dashboard_summary_route():
+    return get_dashboard_summary(request)

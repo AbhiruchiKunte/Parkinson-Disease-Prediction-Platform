@@ -31,6 +31,58 @@ export interface HealthCheckResponse {
   message?: string;
 }
 
+export interface DashboardTrendPoint {
+  date: string;
+  clinical: number;
+  batch: number;
+  total: number;
+  detected: number;
+}
+
+export interface DashboardRiskDistribution {
+  low: number;
+  moderate: number;
+  high: number;
+}
+
+export interface DashboardTopFeature {
+  name: string;
+  score: number;
+  mentions: number;
+}
+
+export interface DashboardBatchRun {
+  created_at: string;
+  filename: string;
+  total_records: number;
+  successful_predictions: number;
+  failed_predictions: number;
+  status: string;
+}
+
+export interface DashboardSummaryResponse {
+  kpis: {
+    clinical_assessments: number;
+    batch_predictions: number;
+    total_predictions: number;
+    pd_detected: number;
+    detection_rate: number;
+    week_over_week_change_percent: number;
+  };
+  today: {
+    date: string;
+    total_predictions: number;
+    pd_detected: number;
+  };
+  risk_distribution: DashboardRiskDistribution;
+  daily_trend: DashboardTrendPoint[];
+  top_features: DashboardTopFeature[];
+  recent_batch_runs: DashboardBatchRun[];
+  insights: string[];
+  insight_source: string;
+  last_updated: string;
+}
+
 export const api = {
   predict: async (data: any, userId?: string) => {
     try {
@@ -113,6 +165,18 @@ export const api = {
       return response.data;
     } catch (error) {
       console.error("Health check error:", error);
+      throw error;
+    }
+  },
+
+  getDashboardSummary: async (userId?: string): Promise<DashboardSummaryResponse> => {
+    try {
+      const response = await axios.get(`${API_Base}/dashboard/summary`, {
+        params: userId ? { user_id: userId } : {},
+      });
+      return response.data;
+    } catch (error) {
+      console.error("Dashboard summary error:", error);
       throw error;
     }
   }
