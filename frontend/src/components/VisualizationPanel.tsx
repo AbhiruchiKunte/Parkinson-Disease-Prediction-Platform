@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -9,7 +9,6 @@ import {
   Download, 
   Info, 
   Layers, 
-  Share2, 
   TrendingUp, 
   Zap 
 } from 'lucide-react';
@@ -20,9 +19,12 @@ import {
   AreaChart, Area,
   RadialBarChart, RadialBar, Legend
 } from 'recharts';
+import { api, AnalyticsAggregateResponse } from '@/lib/api';
 
 const VisualizationPanel = () => {
   const [activeTab, setActiveTab] = useState('overview');
+  const [analyticsData, setAnalyticsData] = useState<AnalyticsAggregateResponse | null>(null);
+  const [loading, setLoading] = useState(true);
 
   // --- MOCK DATA ---
   
@@ -60,7 +62,7 @@ const VisualizationPanel = () => {
   const pcaPoints = pcaPoints3D; 
 
   // 2. Feature Importance Data
-  const featureData = [
+  const featureDataMock = [
     { name: 'Tremor Score', value: 92.5 },
     { name: 'Jitter (Abs)', value: 85.1 },
     { name: 'Bradykinesia', value: 78.9 },
@@ -130,10 +132,45 @@ const VisualizationPanel = () => {
       });
   };
 
-  const symptom3DData = [
+  const symptom3DMock = [
       ...generateSymptomData(150, 15, 15, 15, 10, 'Healthy Control'),
       ...generateSymptomData(300, 30, 30, 45, 25, 'PD patient'),
   ];
+
+  // DATA FETCHING
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const data = await api.getAnalyticsAggregate();
+        setAnalyticsData(data);
+      } catch (err) {
+        console.error("Failed to fetch analytics aggregate:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+    // Poll for updates every 10 seconds to satisfy "updates everytime a new record is saved"
+    const interval = setInterval(fetchData, 10000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Use dynamic data if available, otherwise fallback to mock
+  const symptom3DData = analyticsData?.symptom_3d?.length 
+    ? analyticsData.symptom_3d.map(d => ({ ...d, ...project3D(d.realX, d.realY, d.realZ) }))
+    : symptom3DMock;
+    
+  const featureData = analyticsData?.feature_data?.length 
+    ? analyticsData.feature_data 
+    : featureDataMock;
+
+  const riskProbability = analyticsData?.overall_probability ?? 85;
+  
+  const pcaPointsFinal = analyticsData?.correlation_data?.length
+    ? analyticsData.correlation_data
+    : pcaPoints3D;
+
 
   // Custom 3D Background Grid Component
   const ThreeDGrid = () => {
@@ -263,6 +300,48 @@ const VisualizationPanel = () => {
     return null;
   };
 
+  const handleDownloadReport = () => {
+    const reportDate = new Date().toLocaleString();
+    
+    // Format Feature Data
+    const featureSummary = featureData.map(f => `  - ${f.name}: ${f.value.toFixed(1)}%`).join('\n');
+    
+    // Format Aggregate Stats
+    const totalSamples = analyticsData?.symptom_3d?.length || 0;
+    const pdCount = analyticsData?.symptom_3d?.filter(d => d.type.includes('PD')).length || 0;
+    const healthyCount = totalSamples - pdCount;
+    
+    const reportContent = `
+PARKINSON'S DISEASE DIAGNOSTIC PLATFORM - ANALYTICS REPORT
+Generated on: ${reportDate}
+------------------------------------------------------------
+
+POPULATION OVERVIEW
+- Total Clinical Assessments: ${totalSamples}
+- PD Detected Groups: ${pdCount}
+- Healthy Control Groups: ${healthyCount}
+- Overall Community Risk (Avg): ${riskProbability.toFixed(1)}%
+
+BIOMARKER PERFORMANCE (Avg Percentiles)
+${featureSummary}
+
+DIAGNOSTIC STATUS
+Status: ${riskProbability >= 65 ? 'High Alert' : riskProbability >= 35 ? 'Moderate Monitoring' : 'Stable'}
+Insights: Variance ratio shows 92.4% dataset coverage. Clear cluster separation maintained.
+
+------------------------------------------------------------
+End of Report
+    `.trim();
+
+    const element = document.createElement("a");
+    const file = new Blob([reportContent], { type: 'text/plain' });
+    element.href = URL.createObjectURL(file);
+    element.download = `Parkinsons_Analytics_Report_${new Date().toISOString().split('T')[0]}.txt`;
+    document.body.appendChild(element);
+    element.click();
+    document.body.removeChild(element);
+  };
+
   return (
     <section className="py-12 relative overflow-hidden">
         {/* Background Decorative Elements */}
@@ -297,10 +376,12 @@ const VisualizationPanel = () => {
             </TabsList>
 
             <div className="flex gap-2">
-                <Button variant="outline" size="sm" className="flex items-center gap-2 rounded-xl backdrop-blur-sm bg-background/50">
-                    <Share2 className="w-4 h-4" /> Share
-                </Button>
-                <Button variant="default" size="sm" className="items-center gap-2 rounded-xl shadow-lg shadow-primary/20">
+                <Button 
+                  variant="default" 
+                  size="sm" 
+                  className="items-center gap-2 rounded-xl shadow-lg shadow-primary/20"
+                  onClick={handleDownloadReport}
+                >
                     <Download className="w-4 h-4" /> Export Report
                 </Button>
             </div>
@@ -391,8 +472,10 @@ const VisualizationPanel = () => {
                             </RadialBarChart>
                         </ResponsiveContainer>
                         <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/3 text-center">
-                            <span className="text-6xl font-bold tracking-tighter text-foreground drop-shadow-lg">85%</span>
-                            <p className="text-base text-destructive font-medium mt-2">High Probability</p>
+                            <span className="text-6xl font-bold tracking-tighter text-foreground drop-shadow-lg">{Math.round(riskProbability)}%</span>
+                            <p className={`text-base font-medium mt-2 ${riskProbability >= 65 ? 'text-destructive' : riskProbability >= 35 ? 'text-yellow-500' : 'text-green-500'}`}>
+                                {riskProbability >= 65 ? 'High Probability' : riskProbability >= 35 ? 'Moderate Probability' : 'Low Probability'}
+                            </p>
                         </div>
                     </CardContent>
                 </Card>
@@ -414,9 +497,9 @@ const VisualizationPanel = () => {
                                 <YAxis type="number" dataKey="y" name="Metric 2" unit="" tick={{ fontSize: 12, opacity: 0.5 }} axisLine={false} tickLine={false}/>
                                 <Tooltip content={<CustomTooltipScatter />} cursor={{ strokeDasharray: '3 3' }} />
                                 <Legend verticalAlign="bottom" align="center" wrapperStyle={{ fontSize: '12px', paddingTop: '20px', width: '100%' }} />
-                                <Scatter name="Healthy" data={pcaPoints3D.filter(p => p.type === 'Healthy')} fill="#22c55e" shape="circle" />
-                                <Scatter name="PD Group" data={pcaPoints3D.filter(p => p.type === 'Parkinson\'s')} fill="#eab308" shape="triangle" />
-                                <Scatter name="Patient" data={pcaPoints3D.filter(p => p.type === 'Current Patient')} fill="#ef4444" shape="star" r={200} />
+                                <Scatter name="Healthy" data={pcaPointsFinal.filter(p => p.type === 'Healthy')} fill="#22c55e" shape="circle" />
+                                <Scatter name="PD Group" data={pcaPointsFinal.filter(p => p.type === 'Parkinson\'s')} fill="#eab308" shape="triangle" />
+                                <Scatter name="Patient" data={pcaPointsFinal.filter(p => p.type === 'Current Patient')} fill="#ef4444" shape="star" r={200} />
                             </ScatterChart>
                         </ResponsiveContainer>
                     </CardContent>

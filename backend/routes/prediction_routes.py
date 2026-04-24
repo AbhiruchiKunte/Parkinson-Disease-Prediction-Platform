@@ -1,5 +1,9 @@
 from flask import Blueprint, request
-from controllers.prediction_controller import predict_single, predict_batch, predict_audio_file, predict_video_file, get_audio_history, get_video_history, get_model_info, get_benchmarks, parse_file_data
+from controllers.prediction_controller import (
+    predict_single, predict_batch, predict_audio_file, predict_video_file, 
+    get_audio_history, get_video_history, get_model_info, get_benchmarks, 
+    parse_file_data, get_analytics_aggregate, get_training_logs
+)
 from controllers.dashboard_controller import get_dashboard_summary
 
 prediction_bp = Blueprint('prediction_bp', __name__)
@@ -39,6 +43,14 @@ def video_history_route():
 @prediction_bp.route('/benchmarks', methods=['GET'])
 def benchmarks_route():
     return get_benchmarks()
+
+@prediction_bp.route('/analytics_aggregate', methods=['GET'])
+def analytics_aggregate_route():
+    return get_analytics_aggregate()
+
+@prediction_bp.route('/training_logs', methods=['GET'])
+def training_logs_route():
+    return get_training_logs()
 
 @prediction_bp.route('/dashboard/summary', methods=['GET'])
 def dashboard_summary_route():

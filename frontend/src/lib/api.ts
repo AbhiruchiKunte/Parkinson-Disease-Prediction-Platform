@@ -165,6 +165,14 @@ export interface DashboardSummaryResponse {
   last_updated: string;
 }
 
+export interface AnalyticsAggregateResponse {
+  symptom_3d: { realX: number; realY: number; realZ: number; type: string }[];
+  feature_data: { name: string; value: number }[];
+  overall_probability: number;
+  correlation_data: { x: number; y: number; type: string }[];
+}
+
+
 export const api = {
   predict: async (data: any, userId?: string) => {
     try {
@@ -308,5 +316,26 @@ export const api = {
       console.error("Dashboard summary error:", error);
       throw error;
     }
+  },
+
+  getAnalyticsAggregate: async (): Promise<AnalyticsAggregateResponse> => {
+    try {
+      const response = await axios.get(`${API_Base}/analytics_aggregate`);
+      return response.data;
+    } catch (error) {
+      console.error("Analytics aggregate error:", error);
+      throw error;
+    }
+  },
+
+  getTrainingLogs: async () => {
+    try {
+      const response = await axios.get(`${API_Base}/training_logs`);
+      return response.data;
+    } catch (error) {
+      console.error("Training logs error:", error);
+      return [];
+    }
   }
 };
+
