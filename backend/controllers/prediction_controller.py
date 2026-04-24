@@ -661,3 +661,87 @@ def get_benchmarks():
     except Exception as e:
         logger.error(f"Benchmark error: {str(e)}")
         return jsonify({"error": str(e)}), 500
+
+def get_video_history(request):
+    """
+    Fetch stored video gait/tremor predictions for dynamic frontend visualizations.
+    """
+    try:
+        if not supabase_admin:
+            return jsonify({"error": "Database connection unavailable"}), 503
+
+        user_id = request.args.get('user_id')
+        query = supabase_admin.from_("batch_process_results").select(
+            "created_at,filename,results_json,status"
+        ).eq("status", "video_completed").order("created_at", desc=True).limit(500)
+
+        if user_id:
+            query = query.eq("user_id", user_id)
+
+        response = query.execute()
+        rows = response.data or []
+
+        entries = []
+        normal_count = 0
+        parkinson_count = 0
+        confidence_sum = 0.0
+
+        day_counts = {}
+        today = datetime.now(timezone.utc).date()
+        for d in range(13, -1, -1):
+            key = (today - timedelta(days=d)).isoformat()
+            day_counts[key] = 0
+
+        for row in rows:
+            payload = row.get("results_json", {}) if isinstance(row.get("results_json"), dict) else {}
+            label = payload.get("prediction_label", "Normal")
+            confidence = float(payload.get("prediction_confidence", 0.0) or 0.0)
+            pd_probability = float(payload.get("pd_probability", 0.0) or 0.0)
+            
+            created_at = row.get("created_at")
+            created_dt = None
+            if isinstance(created_at, str):
+                try:
+                    created_dt = datetime.fromisoformat(created_at.replace("Z", "+00:00"))
+                except Exception:
+                    created_dt = None
+
+            if label.lower() == "parkinson":
+                parkinson_count += 1
+            else:
+                normal_count += 1
+
+            confidence_sum += confidence
+
+            if created_dt:
+                k = created_dt.date().isoformat()
+                if k in day_counts:
+                    day_counts[k] += 1
+
+            entries.append({
+                "created_at": created_at,
+                "filename": row.get("filename"),
+                "prediction_label": label,
+                "prediction_confidence": round(confidence, 4),
+                "pd_probability": round(pd_probability, 4),
+                "gait_metrics": payload.get("gait_metrics", []),
+                "distance_to_pd_template": payload.get("distance_to_pd_template"),
+                "distance_to_normal_template": payload.get("distance_to_normal_template"),
+            })
+
+        avg_confidence = (confidence_sum / len(entries)) if entries else 0.0
+        daily_trend = [{"date": k, "count": v} for k, v in day_counts.items()]
+
+        return jsonify({
+            "entries": entries,
+            "summary": {
+                "total": len(entries),
+                "normal": normal_count,
+                "parkinson": parkinson_count,
+                "average_confidence": round(avg_confidence, 4),
+            },
+            "daily_trend": daily_trend,
+        }), 200
+    except Exception as e:
+        logger.error(f"Video history error: {str(e)}")
+        return jsonify({"error": "Failed to fetch video history"}), 500

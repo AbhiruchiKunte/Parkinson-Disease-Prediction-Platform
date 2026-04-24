@@ -85,6 +85,28 @@ export interface AudioHistoryResponse {
   daily_trend: { date: string; count: number }[];
 }
 
+export interface VideoHistoryEntry {
+  created_at: string;
+  filename: string;
+  prediction_label: string;
+  prediction_confidence: number;
+  pd_probability: number;
+  gait_metrics: { name: string; value: number }[];
+  distance_to_pd_template?: number;
+  distance_to_normal_template?: number;
+}
+
+export interface VideoHistoryResponse {
+  entries: VideoHistoryEntry[];
+  summary: {
+    total: number;
+    normal: number;
+    parkinson: number;
+    average_confidence: number;
+  };
+  daily_trend: { date: string; count: number }[];
+}
+
 export interface HealthCheckResponse {
   status: string;
   model_loaded: boolean;
@@ -240,6 +262,18 @@ export const api = {
       return response.data;
     } catch (error) {
       console.error("Audio history error:", error);
+      throw error;
+    }
+  },
+
+  getVideoHistory: async (userId?: string): Promise<VideoHistoryResponse> => {
+    try {
+      const response = await axios.get(`${API_Base}/video_history`, {
+        params: userId ? { user_id: userId } : {},
+      });
+      return response.data;
+    } catch (error) {
+      console.error("Video history error:", error);
       throw error;
     }
   },

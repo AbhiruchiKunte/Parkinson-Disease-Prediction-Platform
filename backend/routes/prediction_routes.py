@@ -1,5 +1,5 @@
 from flask import Blueprint, request
-from controllers.prediction_controller import predict_single, predict_batch, predict_audio_file, predict_video_file, get_audio_history, get_model_info, get_benchmarks, parse_file_data
+from controllers.prediction_controller import predict_single, predict_batch, predict_audio_file, predict_video_file, get_audio_history, get_video_history, get_model_info, get_benchmarks, parse_file_data
 from controllers.dashboard_controller import get_dashboard_summary
 
 prediction_bp = Blueprint('prediction_bp', __name__)
@@ -31,6 +31,10 @@ def predict_video_route():
 @prediction_bp.route('/audio_history', methods=['GET'])
 def audio_history_route():
     return get_audio_history(request)
+
+@prediction_bp.route('/video_history', methods=['GET'])
+def video_history_route():
+    return get_video_history(request)
 
 @prediction_bp.route('/benchmarks', methods=['GET'])
 def benchmarks_route():

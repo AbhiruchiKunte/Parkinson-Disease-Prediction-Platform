@@ -19,6 +19,7 @@ const VoiceAnalysis = () => {
     const [isRecordingAudio, setIsRecordingAudio] = useState(false);
     const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
     const [isProcessing, setIsProcessing] = useState(false);
+    const [processingType, setProcessingType] = useState<'audio' | 'video' | null>(null);
     const [result, setResult] = useState<any>(null);
     const [audioHistory, setAudioHistory] = useState<AudioHistoryEntry[]>([]);
     const [audioSummary, setAudioSummary] = useState({
@@ -27,7 +28,15 @@ const VoiceAnalysis = () => {
         parkinson: 0,
         average_confidence: 0,
     });
+    const [videoHistory, setVideoHistory] = useState<any[]>([]);
+    const [videoSummary, setVideoSummary] = useState({
+        total: 0,
+        normal: 0,
+        parkinson: 0,
+        average_confidence: 0,
+    });
     const [dailyTrend, setDailyTrend] = useState<{ date: string; count: number }[]>([]);
+    const [videoDailyTrend, setVideoDailyTrend] = useState<{ date: string; count: number }[]>([]);
 
     const [selectedAudioFile, setSelectedAudioFile] = useState<File | null>(null);
     const [selectedVideoFile, setSelectedVideoFile] = useState<File | null>(null);
@@ -65,9 +74,29 @@ const VoiceAnalysis = () => {
         }
     };
 
+    const loadVideoHistory = async () => {
+        try {
+            const response = await api.getVideoHistory(user?.id);
+            setVideoHistory(response.entries || []);
+            setVideoSummary(response.summary || {
+                total: 0,
+                normal: 0,
+                parkinson: 0,
+                average_confidence: 0,
+            });
+            setVideoDailyTrend(response.daily_trend || []);
+        } catch (err) {
+            console.error("Failed to fetch video history:", err);
+        }
+    };
+
     useEffect(() => {
         loadAudioHistory();
-        const timer = setInterval(loadAudioHistory, 30000);
+        loadVideoHistory();
+        const timer = setInterval(() => {
+            loadAudioHistory();
+            loadVideoHistory();
+        }, 30000);
         return () => clearInterval(timer);
     }, [user?.id]);
 
@@ -209,6 +238,7 @@ const VoiceAnalysis = () => {
 
     const startAnalysis = async (type: 'audio' | 'video') => {
         setIsProcessing(true);
+        setProcessingType(type);
         
         if (type === 'audio') {
             try {
@@ -258,6 +288,7 @@ const VoiceAnalysis = () => {
                 setResult(null);
             } finally {
                 setIsProcessing(false);
+                setProcessingType(null);
                 setSelectedAudioFile(null);
             }
         } else {
@@ -279,11 +310,11 @@ const VoiceAnalysis = () => {
                 setResult({
                     type: 'video',
                     confidence: confidencePercent,
-                    status: isParkinson ? 'Gait/Tremor Pattern Suggestive of PD' : 'No Significant PD Gait Pattern',
+                    status: isParkinson ? 'PD detected' : 'Normal',
                     details: data.details || (
                         isParkinson
                             ? `Template matching indicates PD-like gait/tremor traits with ${pdPercent}% probability.`
-                            : `Template matching indicates normal gait profile with ${(100 - pdPercent).toFixed(1)}% confidence.`
+                            : `Template matching indicates normal gait profile match.`
                     ),
                     predictionLabel: data.prediction_label,
                     pd_probability: data.pd_probability,
@@ -299,9 +330,10 @@ const VoiceAnalysis = () => {
                     db_status: data.db_status,
                 });
 
+                await loadVideoHistory();
                 toast({
                     title: "Video Analysis Complete",
-                    description: `Prediction: ${data.prediction_label} (${confidencePercent}% confidence).`,
+                    description: `Prediction: ${data.prediction_label}.`,
                 });
             } catch (err) {
                 console.error("Video Analysis Error:", err);
@@ -313,6 +345,7 @@ const VoiceAnalysis = () => {
                 setResult(null);
             } finally {
                 setIsProcessing(false);
+                setProcessingType(null);
                 setSelectedVideoFile(null);
             }
         }
@@ -350,11 +383,11 @@ const VoiceAnalysis = () => {
         return str;
     };
 
-    const downloadAudioReport = () => {
-        if (!result || result.type !== 'audio') {
+    const downloadReport = () => {
+        if (!result) {
             toast({
-                title: "No Audio Report",
-                description: "Run audio analysis first to download the report.",
+                title: "No Report Available",
+                description: "Run an analysis first to download the report.",
                 variant: "destructive",
             });
             return;
@@ -363,7 +396,9 @@ const VoiceAnalysis = () => {
         try {
             const now = new Date();
             const rows: string[] = [];
-            const summary = [
+            if (result.type === 'audio') {
+                const summary = [
+                    ['Report Type', 'Audio Biomarker Analysis'],
                 ['Generated At', now.toISOString()],
                 ['Prediction Label', result.predictionLabel || ''],
                 ['PD Probability', Number(result.pd_probability || 0).toFixed(4)],
@@ -374,11 +409,11 @@ const VoiceAnalysis = () => {
                 ['DB Status', result.db_status || ''],
                 [],
             ];
-            summary.forEach((r) => rows.push(r.map(csvEscape).join(',')));
+                summary.forEach((r) => rows.push(r.map(csvEscape).join(',')));
 
-            rows.push('Recent Audio History');
-            rows.push(['created_at', 'filename', 'prediction_label', 'prediction_confidence', 'pd_probability'].map(csvEscape).join(','));
-            audioHistory.slice(0, 100).forEach((item) => {
+                rows.push('Recent Audio History');
+                rows.push(['created_at', 'filename', 'prediction_label', 'prediction_confidence', 'pd_probability'].map(csvEscape).join(','));
+                audioHistory.slice(0, 100).forEach((item) => {
                 rows.push([
                     item.created_at,
                     item.filename,
@@ -386,13 +421,38 @@ const VoiceAnalysis = () => {
                     item.prediction_confidence,
                     item.pd_probability,
                 ].map(csvEscape).join(','));
-            });
+                });
+
+            } else {
+                const summary = [
+                    ['Report Type', 'Video Gait & Tremor Analysis'],
+                    ['Generated At', now.toISOString()],
+                    ['Prediction Label', result.predictionLabel || ''],
+                    ['PD Probability', Number(result.pd_probability || 0).toFixed(4)],
+                    ['Analysis Method', result.analysis_method || ''],
+                    ['Dist to PD Template', Number(result.distance_to_pd_template || 0).toFixed(4)],
+                    ['Dist to Normal Template', Number(result.distance_to_normal_template || 0).toFixed(4)],
+                    ['DB Status', result.db_status || ''],
+                    [],
+                ];
+                summary.forEach((r) => rows.push(r.map(csvEscape).join(',')));
+
+                if (result.gait_metrics && result.gait_metrics.length > 0) {
+                    rows.push('Gait Metrics');
+                    rows.push(['Metric', 'Value'].join(','));
+                    result.gait_metrics.forEach((m: any) => {
+                        rows.push([m.name, m.value].map(csvEscape).join(','));
+                    });
+                    rows.push([]);
+                }
+            }
 
             const blob = new Blob([rows.join('\n')], { type: 'text/csv;charset=utf-8;' });
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = `audio_lstm_report_${now.toISOString().replace(/[:.]/g, '-')}.csv`;
+            const prefix = result.type === 'audio' ? 'audio_lstm' : 'video_gait';
+            a.download = `${prefix}_report_${now.toISOString().replace(/[:.]/g, '-')}.csv`;
             document.body.appendChild(a);
             a.click();
             document.body.removeChild(a);
@@ -400,7 +460,7 @@ const VoiceAnalysis = () => {
 
             toast({
                 title: "Report Downloaded",
-                description: "Audio LSTM report downloaded successfully.",
+                description: `${result.type === 'audio' ? 'Audio' : 'Video'} report downloaded successfully.`,
             });
         } catch (e: any) {
             toast({
@@ -681,7 +741,9 @@ const VoiceAnalysis = () => {
                  <div className="mt-12 text-center animate-in fade-in zoom-in duration-500">
                     <div className="w-20 h-20 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-6 shadow-glow"></div>
                     <h3 className="text-2xl font-bold mb-2 bg-clip-text text-transparent bg-gradient-to-r from-primary to-purple-600">Analyzing Biomarkers...</h3>
-                    <p className="text-muted-foreground">Running LSTM model for temporal pattern analysis</p>
+                    {processingType === 'audio' && (
+                        <p className="text-muted-foreground">Running LSTM model for temporal pattern analysis</p>
+                    )}
                  </div>
             )}
 
@@ -696,77 +758,81 @@ const VoiceAnalysis = () => {
                         <p className="text-lg text-muted-foreground mt-2 max-w-2xl mx-auto">{result.details}</p>
                      </div>
 
-                     {result.type === 'audio' && (
-                        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-2">
-                            <Card className="shadow-sm">
-                                <CardContent className="py-4">
-                                    <p className="text-xs text-muted-foreground">Total Audio Analyses</p>
-                                    <p className="text-2xl font-bold">{audioSummary.total}</p>
-                                </CardContent>
-                            </Card>
-                            <Card className="shadow-sm">
-                                <CardContent className="py-4">
-                                    <p className="text-xs text-muted-foreground">Normal</p>
-                                    <p className="text-2xl font-bold text-green-600">{audioSummary.normal}</p>
-                                </CardContent>
-                            </Card>
-                            <Card className="shadow-sm">
-                                <CardContent className="py-4">
-                                    <p className="text-xs text-muted-foreground">Parkinson</p>
-                                    <p className="text-2xl font-bold text-red-600">{audioSummary.parkinson}</p>
-                                </CardContent>
-                            </Card>
+                     <div className={`grid grid-cols-1 ${result.type === 'audio' ? 'md:grid-cols-4' : 'md:grid-cols-3'} gap-4 mb-2`}>
+                         <Card className="shadow-sm">
+                             <CardContent className="py-4">
+                                 <p className="text-xs text-muted-foreground">{result.type === 'audio' ? 'Total Audio Analyses' : 'Total Video Analyses'}</p>
+                                 <p className="text-2xl font-bold">{result.type === 'audio' ? audioSummary.total : videoSummary.total}</p>
+                             </CardContent>
+                         </Card>
+                         <Card className="shadow-sm">
+                             <CardContent className="py-4">
+                                 <p className="text-xs text-muted-foreground">Normal</p>
+                                 <p className="text-2xl font-bold text-green-600">{result.type === 'audio' ? audioSummary.normal : videoSummary.normal}</p>
+                             </CardContent>
+                         </Card>
+                         <Card className="shadow-sm">
+                             <CardContent className="py-4">
+                                 <p className="text-xs text-muted-foreground">Parkinson</p>
+                                 <p className="text-2xl font-bold text-red-600">{result.type === 'audio' ? audioSummary.parkinson : videoSummary.parkinson}</p>
+                             </CardContent>
+                         </Card>
+                         {result.type === 'audio' && (
                             <Card className="shadow-sm">
                                 <CardContent className="py-4">
                                     <p className="text-xs text-muted-foreground">Avg Confidence</p>
-                                    <p className="text-2xl font-bold">{(audioSummary.average_confidence * 100).toFixed(1)}%</p>
+                                    <p className="text-2xl font-bold">
+                                        {(audioSummary.average_confidence * 100).toFixed(1)}%
+                                    </p>
                                 </CardContent>
                             </Card>
-                        </div>
-                     )}
+                         )}
+                     </div>
 
                      <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-                        {/* 1. Confidence Gauge */}
-                        <Card className="shadow-xl border-muted overflow-hidden relative group lg:col-span-1">
-                            <div className="absolute inset-0 bg-gradient-to-br from-transparent to-primary/5 opacity-0 group-hover:opacity-100 transition-opacity" />
-                            <CardHeader>
-                                <CardTitle className="text-xl flex items-center gap-2">
-                                    <Activity className="w-5 h-5 text-primary" />
-                                    AI Confidence Score
-                                </CardTitle>
-                                <CardDescription>Probability of Parkinsonian patterns in {result.type} stream</CardDescription>
-                            </CardHeader>
-                            <CardContent className="h-[300px] relative flex items-center justify-center">
-                                <ResponsiveContainer width="100%" height="100%">
-                                    <RadialBarChart 
-                                        cx="50%" 
-                                        cy="50%" 
-                                        innerRadius="60%" 
-                                        outerRadius="100%" 
-                                        barSize={20} 
-                                        data={[{ name: 'Confidence', value: result.confidence, fill: result.confidence > 50 ? '#ef4444' : '#10b981' }]} 
-                                        startAngle={180} 
-                                        endAngle={0}
-                                    >
-                                        <RadialBar
-                                            background
-                                            dataKey="value"
-                                            cornerRadius={10}
-                                        />
-                                        <PolarAngleAxis type="number" domain={[0, 100]} tick={false} />
-                                    </RadialBarChart>
-                                </ResponsiveContainer>
-                                <div className="absolute inset-0 flex flex-col items-center justify-center pt-10">
-                                    <span className={`text-5xl font-bold ${Number(result.confidence) > 50 ? 'text-red-500' : 'text-green-500'}`}>
-                                        {result.confidence}%
-                                    </span>
-                                    <span className="text-sm text-muted-foreground uppercase tracking-wider mt-1">Probability</span>
-                                </div>
-                            </CardContent>
-                        </Card>
+                        {/* 1. Confidence Gauge (Only for Audio) */}
+                        {result.type === 'audio' && (
+                            <Card className="shadow-xl border-muted overflow-hidden relative group lg:col-span-1">
+                                <div className="absolute inset-0 bg-gradient-to-br from-transparent to-primary/5 opacity-0 group-hover:opacity-100 transition-opacity" />
+                                <CardHeader>
+                                    <CardTitle className="text-xl flex items-center gap-2">
+                                        <Activity className="w-5 h-5 text-primary" />
+                                        AI Confidence Score
+                                    </CardTitle>
+                                    <CardDescription>Probability of Parkinsonian patterns in audio stream</CardDescription>
+                                </CardHeader>
+                                <CardContent className="h-[300px] relative flex items-center justify-center">
+                                    <ResponsiveContainer width="100%" height="100%">
+                                        <RadialBarChart 
+                                            cx="50%" 
+                                            cy="50%" 
+                                            innerRadius="60%" 
+                                            outerRadius="100%" 
+                                            barSize={20} 
+                                            data={[{ name: 'Confidence', value: result.confidence, fill: result.confidence > 50 ? '#ef4444' : '#10b981' }]} 
+                                            startAngle={180} 
+                                            endAngle={0}
+                                        >
+                                            <RadialBar
+                                                background
+                                                dataKey="value"
+                                                cornerRadius={10}
+                                            />
+                                            <PolarAngleAxis type="number" domain={[0, 100]} tick={false} />
+                                        </RadialBarChart>
+                                    </ResponsiveContainer>
+                                    <div className="absolute inset-0 flex flex-col items-center justify-center pt-10">
+                                        <span className={`text-5xl font-bold ${Number(result.confidence) > 50 ? 'text-red-500' : 'text-green-500'}`}>
+                                            {result.confidence}%
+                                        </span>
+                                        <span className="text-sm text-muted-foreground uppercase tracking-wider mt-1">Probability</span>
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        )}
 
-                        {/* 2. Primary Analysis (Existing) */}
-                        <Card className="shadow-xl border-muted overflow-hidden relative group lg:col-span-2">
+                        {/* 2. Primary Analysis */}
+                        <Card className={`shadow-xl border-muted overflow-hidden relative group ${result.type === 'audio' ? 'lg:col-span-2' : 'lg:col-span-3'}`}>
                             <div className="absolute inset-0 bg-gradient-to-bl from-transparent to-purple-500/5 opacity-0 group-hover:opacity-100 transition-opacity" />
                             <CardHeader>
                                 <CardTitle className="text-xl flex items-center gap-2">
@@ -808,7 +874,7 @@ const VoiceAnalysis = () => {
                         {/* 3. New Interactive Charts - Row 2 */}
                          {result.type === 'audio' ? (
                             <>
-                                {/* Audio Chart 2: Frequency Spectrum - Enhanced */}
+                                {/* Audio Chart 2: Frequency Spectrum */}
                                 <Card className="shadow-lg border-muted lg:col-span-1 overflow-hidden relative group">
                                      <div className="absolute inset-0 bg-gradient-to-tr from-transparent to-green-500/5 opacity-0 group-hover:opacity-100 transition-opacity" />
                                     <CardHeader>
@@ -833,7 +899,7 @@ const VoiceAnalysis = () => {
                                     </CardContent>
                                 </Card>
 
-                                {/* Audio Chart 3: Vocal Quality Metrics - Radial Style */}
+                                {/* Audio Chart 3: Vocal Quality Metrics */}
                                 <Card className="shadow-lg border-muted lg:col-span-2 overflow-hidden relative group">
                                     <div className="absolute inset-0 bg-gradient-to-bl from-transparent to-red-500/5 opacity-0 group-hover:opacity-100 transition-opacity" />
                                     <CardHeader>
@@ -850,7 +916,6 @@ const VoiceAnalysis = () => {
                                                     contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }} 
                                                 />
                                                 <Legend iconType="circle" />
-                                                {/* Patient Value with Gradient */}
                                                 <defs>
                                                     <linearGradient id="patientGrad" x1="0" y1="0" x2="0" y2="1">
                                                         <stop offset="0%" stopColor="#ef4444" stopOpacity={1}/>
@@ -870,7 +935,7 @@ const VoiceAnalysis = () => {
                             </>
                         ) : (
                             <>
-                                {/* Video Chart 2: Tremor Severity Series - Smooth Area */}
+                                {/* Video Chart 2: Tremor Severity Series */}
                                 <Card className="shadow-lg border-muted lg:col-span-2 overflow-hidden relative group">
                                      <div className="absolute inset-0 bg-gradient-to-r from-transparent to-amber-500/5 opacity-0 group-hover:opacity-100 transition-opacity" />
                                     <CardHeader>
@@ -895,7 +960,7 @@ const VoiceAnalysis = () => {
                                     </CardContent>
                                 </Card>
 
-                                {/* Video Chart 3: Posture Stability Radar - Enhanced */}
+                                {/* Video Chart 3: Posture Stability Radar */}
                                 <Card className="shadow-lg border-muted lg:col-span-1 overflow-hidden relative group">
                                     <div className="absolute inset-0 bg-gradient-to-br from-transparent to-blue-500/5 opacity-0 group-hover:opacity-100 transition-opacity" />
                                     <CardHeader>
@@ -905,15 +970,9 @@ const VoiceAnalysis = () => {
                                     <CardContent className="h-[250px]">
                                         <ResponsiveContainer width="100%" height="100%">
                                             <RadarChart cx="50%" cy="50%" outerRadius="70%" data={videoPostureRadar}>
-                                                <defs>
-                                                    <radialGradient id="radarBlue" cx="50%" cy="50%" r="50%" fx="50%" fy="50%">
-                                                        <stop offset="0%" stopColor="#3b82f6" stopOpacity={0.5}/>
-                                                        <stop offset="100%" stopColor="#3b82f6" stopOpacity={0.1}/>
-                                                    </radialGradient>
-                                                </defs>
-                                                <PolarGrid strokeOpacity={0.2} />
-                                                <PolarAngleAxis dataKey="subject" tick={{ fill: 'currentColor', fontSize: 12 }} />
-                                                <PolarRadiusAxis angle={30} domain={[0, 100]} tick={false} axisLine={false} />
+                                                <PolarGrid />
+                                                <PolarAngleAxis dataKey="subject" />
+                                                <PolarRadiusAxis angle={30} domain={[0, 150]} />
                                                 <Radar name="Balance" dataKey="A" stroke="#3b82f6" strokeWidth={2} fill="url(#radarBlue)" fillOpacity={0.6} animationDuration={1500} />
                                                 <Tooltip contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }} />
                                             </RadarChart>
@@ -929,16 +988,169 @@ const VoiceAnalysis = () => {
                             variant="outline" 
                             size="lg" 
                             onClick={() => setResult(null)}
-                            className="mr-4"
+                            className="mr-4 text-base h-12 px-8 border-primary/20 hover:bg-primary/5"
                         >
+                            <RefreshCw className="w-5 h-5 mr-2" />
                             Reset Analysis
                         </Button>
-                        <Button size="lg" className="bg-gradient-hero shadow-lg px-8" onClick={downloadAudioReport}>
-                            Download Detailed Clinical Report
+                        <Button size="lg" className="bg-gradient-hero shadow-lg px-8 text-base h-12" onClick={downloadReport}>
+                            Download report
                         </Button>
                      </div>
                 </div>
             )}
+
+            {/* Diagnostic History Section - Premium Table */}
+            <div className="mt-20 max-w-5xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-12 duration-700">
+                <div className="flex items-center justify-between">
+                    <div>
+                        <h2 className="text-2xl font-bold">Diagnostic History</h2>
+                        <p className="text-muted-foreground">Historical overview of your biomarkers</p>
+                    </div>
+                </div>
+
+                <Tabs defaultValue="audio_history" className="w-full">
+                    <TabsList className="grid w-64 grid-cols-2 mb-6">
+                        <TabsTrigger value="audio_history">Audio</TabsTrigger>
+                        <TabsTrigger value="video_history">Video</TabsTrigger>
+                    </TabsList>
+
+                    <TabsContent value="audio_history">
+                        <Card className="shadow-lg border-muted">
+                            <CardContent className="p-0 overflow-hidden rounded-xl">
+                                <div className="overflow-x-auto">
+                                    <table className="w-full text-left">
+                                        <thead className="bg-secondary/10 border-b">
+                                            <tr>
+                                                <th className="px-6 py-4 font-semibold text-sm">Date</th>
+                                                <th className="px-6 py-4 font-semibold text-sm">Status</th>
+                                                <th className="px-6 py-4 font-semibold text-sm">Confidence</th>
+                                                <th className="px-6 py-4 font-semibold text-sm">PD Prob</th>
+                                                <th className="px-6 py-4 font-semibold text-sm text-right">Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y">
+                                            {audioHistory.length === 0 ? (
+                                                <tr>
+                                                    <td colSpan={5} className="px-6 py-12 text-center text-muted-foreground">
+                                                        No audio analysis history found.
+                                                    </td>
+                                                </tr>
+                                            ) : (
+                                                audioHistory.slice(0, 10).map((item, idx) => (
+                                                    <tr key={idx} className="hover:bg-primary/5 transition-colors group">
+                                                        <td className="px-6 py-4 text-sm whitespace-nowrap">
+                                                            {new Date(item.created_at).toLocaleDateString()} <span className="text-xs text-muted-foreground ml-2 opacity-0 group-hover:opacity-100 transition-opacity">{new Date(item.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                                                        </td>
+                                                        <td className="px-6 py-4">
+                                                            <span className={`px-3 py-1 rounded-full text-xs font-medium ${item.prediction_label === 'Parkinson' ? 'bg-red-100 text-red-600' : 'bg-green-100 text-green-600'}`}>
+                                                                {item.prediction_label}
+                                                            </span>
+                                                        </td>
+                                                        <td className="px-6 py-4 text-sm font-medium">
+                                                            {(Number(item.prediction_confidence) * 100).toFixed(1)}%
+                                                        </td>
+                                                        <td className="px-6 py-4 text-sm">
+                                                            {(Number(item.pd_probability) * 100).toFixed(1)}%
+                                                        </td>
+                                                        <td className="px-6 py-4 text-right">
+                                                            <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={() => {
+                                                                setResult({
+                                                                    type: 'audio',
+                                                                    confidence: Number((item.prediction_confidence * 100).toFixed(1)),
+                                                                    status: item.prediction_label === 'Parkinson' ? 'Parkinson Detected' : 'Normal Voice Pattern',
+                                                                    details: item.prediction_label === 'Parkinson'
+                                                                        ? `LSTM audio model indicates Parkinsonian voice traits with ${(item.pd_probability * 100).toFixed(1)}% probability.`
+                                                                        : `LSTM audio model indicates normal pattern with ${(100 - item.pd_probability * 100).toFixed(1)}% confidence.`,
+                                                                    predictionLabel: item.prediction_label,
+                                                                    pd_probability: item.pd_probability,
+                                                                    prediction_confidence: item.prediction_confidence,
+                                                                    feature_means: item.feature_means,
+                                                                    waveform_preview: [],
+                                                                    generated_at: item.created_at,
+                                                                });
+                                                                window.scrollTo({ top: 0, behavior: 'smooth' });
+                                                            }}>
+                                                                <RefreshCw className="w-4 h-4" />
+                                                            </Button>
+                                                        </td>
+                                                    </tr>
+                                                ))
+                                            )}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </CardContent>
+                        </Card>
+                    </TabsContent>
+
+                    <TabsContent value="video_history">
+                        <Card className="shadow-lg border-muted">
+                            <CardContent className="p-0 overflow-hidden rounded-xl">
+                                <div className="overflow-x-auto">
+                                    <table className="w-full text-left">
+                                        <thead className="bg-secondary/10 border-b">
+                                            <tr>
+                                                <th className="px-6 py-4 font-semibold text-sm">Date</th>
+                                                <th className="px-6 py-4 font-semibold text-sm">Status</th>
+                                                <th className="px-6 py-4 font-semibold text-sm whitespace-nowrap">Dist (Normal/PD)</th>
+                                                <th className="px-6 py-4 font-semibold text-sm text-right">Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y">
+                                            {videoHistory.length === 0 ? (
+                                                <tr>
+                                                    <td colSpan={4} className="px-6 py-12 text-center text-muted-foreground">
+                                                        No video analysis history found.
+                                                    </td>
+                                                </tr>
+                                            ) : (
+                                                videoHistory.slice(0, 10).map((item, idx) => {
+                                                    const isParkinson = item.prediction_label?.toLowerCase() === 'parkinson';
+                                                    return (
+                                                        <tr key={idx} className="hover:bg-primary/5 transition-colors group">
+                                                            <td className="px-6 py-4 text-sm whitespace-nowrap">
+                                                                {new Date(item.created_at).toLocaleDateString()} <span className="text-xs text-muted-foreground ml-2 opacity-0 group-hover:opacity-100 transition-opacity">{new Date(item.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                                                            </td>
+                                                            <td className="px-6 py-4">
+                                                                <span className={`px-3 py-1 rounded-full text-xs font-medium ${isParkinson ? 'bg-red-100 text-red-600' : 'bg-green-100 text-green-600'}`}>
+                                                                    {isParkinson ? 'PD detected' : 'Normal'}
+                                                                </span>
+                                                            </td>
+                                                            <td className="px-6 py-4 text-sm font-mono text-xs">
+                                                                {Number(item.distance_to_normal_template).toFixed(2)} / {Number(item.distance_to_pd_template).toFixed(2)}
+                                                            </td>
+                                                            <td className="px-6 py-4 text-right">
+                                                                <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={() => {
+                                                                    setResult({
+                                                                        type: 'video',
+                                                                        confidence: Number((item.prediction_confidence * 100).toFixed(1)),
+                                                                        status: isParkinson ? 'PD detected' : 'Normal',
+                                                                        predictionLabel: item.prediction_label,
+                                                                        pd_probability: item.pd_probability,
+                                                                        prediction_confidence: item.prediction_confidence,
+                                                                        gait_metrics: item.gait_metrics,
+                                                                        tremor_series: item.tremor_series,
+                                                                        posture_radar: item.posture_radar,
+                                                                        generated_at: item.created_at,
+                                                                    });
+                                                                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                                                                }}>
+                                                                    <RefreshCw className="w-4 h-4" />
+                                                                </Button>
+                                                            </td>
+                                                        </tr>
+                                                    );
+                                                })
+                                            )}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </CardContent>
+                        </Card>
+                    </TabsContent>
+                </Tabs>
+            </div>
         </div>
     );
 };

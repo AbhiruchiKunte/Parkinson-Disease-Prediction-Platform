@@ -50,7 +50,7 @@ const Footer = () => {
               </a>
             </div>
             <p className="mt-4 text-xs text-muted-foreground">
-              © {new Date().getFullYear()} NeuroDetect. All rights reserved.
+              © 2025-26 NeuroDetect. All rights reserved.
             </p>
           </div>
         </div>
