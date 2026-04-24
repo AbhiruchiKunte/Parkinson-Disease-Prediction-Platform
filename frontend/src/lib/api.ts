@@ -43,6 +43,23 @@ export interface AudioPredictionResponse {
   db_status?: string;
 }
 
+export interface VideoPredictionResponse {
+  prediction_label: "Normal" | "Parkinson" | string;
+  prediction_confidence: number;
+  pd_probability: number;
+  prediction_status?: string;
+  analysis_method?: string;
+  details?: string;
+  distance_to_pd_template?: number;
+  distance_to_normal_template?: number;
+  video_features?: Record<string, number>;
+  tremor_series?: { t: string; mag: number }[];
+  gait_metrics?: { name: string; value: number; fill?: string }[];
+  posture_radar?: { subject: string; A: number; fullMark?: number }[];
+  generated_at?: string;
+  db_status?: string;
+}
+
 export interface AudioHistoryEntry {
   created_at: string;
   filename: string;
@@ -191,6 +208,26 @@ export const api = {
       return response.data;
     } catch (error) {
       console.error("Audio analysis error:", error);
+      throw error;
+    }
+  },
+
+  predictVideo: async (file: File, userId?: string): Promise<VideoPredictionResponse> => {
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      if (userId) {
+        formData.append('user_id', userId);
+      }
+
+      const response = await axios.post(`${API_Base}/predict_video`, formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+      return response.data;
+    } catch (error) {
+      console.error("Video analysis error:", error);
       throw error;
     }
   },

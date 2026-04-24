@@ -122,6 +122,41 @@ const VoiceAnalysis = () => {
         }));
     }, [dailyTrend]);
 
+    const videoGaitMetrics = useMemo(() => {
+        if (result?.type !== 'video') return [];
+        const data = result?.gait_metrics;
+        if (Array.isArray(data) && data.length) return data;
+        return [
+            { name: 'Stride Length', value: 85, fill: '#8b5cf6' },
+            { name: 'Arm Swing', value: 45, fill: '#ec4899' },
+            { name: 'Posture', value: 60, fill: '#10b981' },
+            { name: 'Stability', value: 75, fill: '#3b82f6' },
+            { name: 'Turning Speed', value: 55, fill: '#f59e0b' },
+        ];
+    }, [result]);
+
+    const videoTremorSeries = useMemo(() => {
+        if (result?.type !== 'video') return [];
+        const data = result?.tremor_series;
+        if (Array.isArray(data) && data.length) return data;
+        return [
+            { t: '0s', mag: 10 }, { t: '2s', mag: 15 }, { t: '4s', mag: 45 },
+            { t: '6s', mag: 30 }, { t: '8s', mag: 60 }, { t: '10s', mag: 55 },
+        ];
+    }, [result]);
+
+    const videoPostureRadar = useMemo(() => {
+        if (result?.type !== 'video') return [];
+        const data = result?.posture_radar;
+        if (Array.isArray(data) && data.length) return data;
+        return [
+            { subject: 'Forward', A: 80, fullMark: 100 },
+            { subject: 'Backward', A: 65, fullMark: 100 },
+            { subject: 'Left', A: 90, fullMark: 100 },
+            { subject: 'Right', A: 85, fullMark: 100 },
+        ];
+    }, [result]);
+
     // Real Audio Recording
     const startAudioRecording = async () => {
         try {
@@ -226,17 +261,60 @@ const VoiceAnalysis = () => {
                 setSelectedAudioFile(null);
             }
         } else {
-            // Mock Video Analysis for now (as per plan)
-            setTimeout(() => {
-                setIsProcessing(false);
+            try {
+                if (!selectedVideoFile) {
+                    toast({
+                        title: "Video Required",
+                        description: "Please upload a video file to run gait/tremor analysis.",
+                        variant: "destructive",
+                    });
+                    return;
+                }
+
+                const data = await api.predictVideo(selectedVideoFile, user?.id);
+                const confidencePercent = Number((Number(data.prediction_confidence || 0) * 100).toFixed(1));
+                const pdPercent = Number((Number(data.pd_probability || 0) * 100).toFixed(1));
+                const isParkinson = String(data.prediction_label || '').toLowerCase() === 'parkinson';
+
                 setResult({
                     type: 'video',
-                    confidence: 92.1,
-                    status: 'Gait Abnormality Detected',
-                    details: 'Reduced arm swing and slight shuffling detected.'
+                    confidence: confidencePercent,
+                    status: isParkinson ? 'Gait/Tremor Pattern Suggestive of PD' : 'No Significant PD Gait Pattern',
+                    details: data.details || (
+                        isParkinson
+                            ? `Template matching indicates PD-like gait/tremor traits with ${pdPercent}% probability.`
+                            : `Template matching indicates normal gait profile with ${(100 - pdPercent).toFixed(1)}% confidence.`
+                    ),
+                    predictionLabel: data.prediction_label,
+                    pd_probability: data.pd_probability,
+                    prediction_confidence: data.prediction_confidence,
+                    analysis_method: data.analysis_method,
+                    distance_to_pd_template: data.distance_to_pd_template,
+                    distance_to_normal_template: data.distance_to_normal_template,
+                    video_features: data.video_features || {},
+                    tremor_series: data.tremor_series || [],
+                    gait_metrics: data.gait_metrics || [],
+                    posture_radar: data.posture_radar || [],
+                    generated_at: data.generated_at,
+                    db_status: data.db_status,
                 });
+
+                toast({
+                    title: "Video Analysis Complete",
+                    description: `Prediction: ${data.prediction_label} (${confidencePercent}% confidence).`,
+                });
+            } catch (err) {
+                console.error("Video Analysis Error:", err);
+                toast({
+                    title: "Video Analysis Failed",
+                    description: "Could not process the uploaded video. Ensure templates are configured on backend.",
+                    variant: "destructive",
+                });
+                setResult(null);
+            } finally {
+                setIsProcessing(false);
                 setSelectedVideoFile(null);
-            }, 2500);
+            }
         }
     };
 
@@ -715,13 +793,7 @@ const VoiceAnalysis = () => {
                                             <XAxis dataKey="time" axisLine={false} tickLine={false} hide />
                                         </AreaChart>
                                     ) : (
-                                        <BarChart data={[
-                                            { name: 'Stride Length', value: 85, fill: '#8b5cf6' },
-                                            { name: 'Arm Swing', value: 45, fill: '#ec4899' },
-                                            { name: 'Posture', value: 60, fill: '#10b981' },
-                                            { name: 'Stability', value: 75, fill: '#3b82f6' },
-                                            { name: 'Turning Speed', value: 55, fill: '#f59e0b' },
-                                        ]} layout="vertical" margin={{ left: 20 }}>
+                                        <BarChart data={videoGaitMetrics} layout="vertical" margin={{ left: 20 }}>
                                             <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} strokeOpacity={0.1} />
                                             <XAxis type="number" hide />
                                             <YAxis dataKey="name" type="category" axisLine={false} tickLine={false} width={100} />
@@ -807,10 +879,7 @@ const VoiceAnalysis = () => {
                                     </CardHeader>
                                     <CardContent className="h-[250px]">
                                         <ResponsiveContainer width="100%" height="100%">
-                                            <AreaChart data={[
-                                                { t: '0s', mag: 10 }, { t: '2s', mag: 15 }, { t: '4s', mag: 45 }, 
-                                                { t: '6s', mag: 30 }, { t: '8s', mag: 60 }, { t: '10s', mag: 55 }
-                                            ]}>
+                                            <AreaChart data={videoTremorSeries}>
                                                 <defs>
                                                     <linearGradient id="colorTremor" x1="0" y1="0" x2="0" y2="1">
                                                         <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.8}/>
@@ -835,12 +904,7 @@ const VoiceAnalysis = () => {
                                     </CardHeader>
                                     <CardContent className="h-[250px]">
                                         <ResponsiveContainer width="100%" height="100%">
-                                            <RadarChart cx="50%" cy="50%" outerRadius="70%" data={[
-                                                { subject: 'Forward', A: 80, fullMark: 100 },
-                                                { subject: 'Backward', A: 65, fullMark: 100 },
-                                                { subject: 'Left', A: 90, fullMark: 100 },
-                                                { subject: 'Right', A: 85, fullMark: 100 },
-                                            ]}>
+                                            <RadarChart cx="50%" cy="50%" outerRadius="70%" data={videoPostureRadar}>
                                                 <defs>
                                                     <radialGradient id="radarBlue" cx="50%" cy="50%" r="50%" fx="50%" fy="50%">
                                                         <stop offset="0%" stopColor="#3b82f6" stopOpacity={0.5}/>

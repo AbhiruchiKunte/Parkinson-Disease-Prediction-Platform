@@ -9,6 +9,7 @@ torch==2.2.2
 Werkzeug==2.3.7
 gunicorn==21.2.0
 librosa==0.10.1
+opencv-python-headless==4.10.0.84
 openpyxl==3.1.2
 python-dotenv
 setuptools==80.9.0

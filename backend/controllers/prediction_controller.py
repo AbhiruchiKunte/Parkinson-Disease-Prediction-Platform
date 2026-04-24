@@ -72,6 +72,7 @@ from dotenv import load_dotenv
 
 from utils import validate_features, process_csv_batch, extract_audio_features
 from model_loader import ModelHandler
+from video_template_matcher import VideoTemplateMatcher
 
 # Load env variables
 load_dotenv()
@@ -92,6 +93,7 @@ if url and key:
 
 # Initialize Model Handler
 model_handler = ModelHandler()
+video_matcher = VideoTemplateMatcher()
 _assessment_insight_generator = None
 _assessment_insight_model = None
 
@@ -391,6 +393,80 @@ def predict_audio_file(request):
         
     except Exception as e:
         logger.error(f"Audio prediction error: {str(e)}")
+        if temp_path and os.path.exists(temp_path):
+            try:
+                os.remove(temp_path)
+            except Exception:
+                pass
+        return jsonify({"error": str(e)}), 500
+
+
+def predict_video_file(request):
+    """
+    Handle uploaded video prediction using template-matching against
+    reference normal/PD videos.
+    """
+    temp_path = None
+    try:
+        if 'file' not in request.files:
+            return jsonify({"error": "No video file provided"}), 400
+
+        file = request.files['file']
+        if file.filename == '':
+            return jsonify({"error": "No selected file"}), 400
+
+        user_id = request.form.get('user_id')
+        ext = os.path.splitext(file.filename)[1].lower() or ".mp4"
+        temp_filename = f"temp_video_{uuid.uuid4()}{ext}"
+        temp_path = os.path.join("temp", temp_filename)
+        os.makedirs("temp", exist_ok=True)
+        file.save(temp_path)
+
+        result = video_matcher.predict(temp_path)
+        result["generated_at"] = datetime.now(timezone.utc).isoformat()
+
+        if supabase_admin:
+            try:
+                db_record = {
+                    "user_id": user_id,
+                    "filename": file.filename,
+                    "total_records": 1,
+                    "successful_predictions": 1,
+                    "failed_predictions": 0,
+                    "results_json": {
+                        "type": "video",
+                        "prediction_label": result.get("prediction_label"),
+                        "prediction_confidence": result.get("prediction_confidence"),
+                        "pd_probability": result.get("pd_probability"),
+                        "details": result.get("details"),
+                        "analysis_method": result.get("analysis_method"),
+                        "distance_to_pd_template": result.get("distance_to_pd_template"),
+                        "distance_to_normal_template": result.get("distance_to_normal_template"),
+                        "video_features": result.get("video_features", {}),
+                        "gait_metrics": result.get("gait_metrics", []),
+                        "posture_radar": result.get("posture_radar", []),
+                        "tremor_series": result.get("tremor_series", []),
+                        "generated_at": result.get("generated_at"),
+                    },
+                    "status": "video_completed"
+                }
+                supabase_admin.from_("batch_process_results").insert(db_record).execute()
+                result["db_status"] = "saved"
+            except Exception as db_err:
+                logger.error(f"Failed to save video result to DB: {db_err}")
+                result["db_status"] = f"failed: {str(db_err)}"
+        else:
+            result["db_status"] = "skipped (db unavailable)"
+
+        if temp_path and os.path.exists(temp_path):
+            try:
+                os.remove(temp_path)
+            except Exception:
+                pass
+
+        return jsonify(result), 200
+    except Exception as e:
+        logger.error(f"Video prediction error: {str(e)}")
         if temp_path and os.path.exists(temp_path):
             try:
                 os.remove(temp_path)
