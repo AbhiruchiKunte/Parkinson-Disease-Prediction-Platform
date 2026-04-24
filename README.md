@@ -14,7 +14,7 @@ The platform follows a decoupled client-server architecture with high-performanc
 - **ML Engine**: 
     - **Clinical Models**: Random Forest and SVM ensembles for tabular biomarker prediction.
     - **Audio Engine**: MFCC feature extraction coupled with an LSTM Neural Network for phonation analysis.
-    - **Video Engine**: Template-matching algorithms for gait and tremor analysis.
+    - **Video Engine**: Template-matching for gait and tremor analysis.
 
 ---
 
@@ -63,7 +63,7 @@ Parkinson-Disease-Prediction-Platform/
 | Component | Technology |
 | :--- | :--- |
 | **Frontend** | React, TypeScript, Vite, TailwindCSS, Recharts, Lucide-React |
-| **Backend** | Python, Flask, Gunicorn |
+| **Backend** | Python, Flask |
 | **Machine Learning** | Scikit-Learn, TensorFlow, NumPy, Pandas |
 | **Database** | Supabase (PostgreSQL) |
 | **DevOps** | Batch Automation, Environ Configuration |
